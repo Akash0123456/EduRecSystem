@@ -12,6 +12,9 @@ jobs:
   backend-tests:
     name: Run Backend Tests
     runs-on: ubuntu-latest
+    defaults:
+      run:
+        working_directory: ./edu_rec_api
     steps:
       - name: Checkout Repository
         uses: actions/checkout@v4
