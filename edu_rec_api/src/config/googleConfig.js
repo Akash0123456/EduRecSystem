@@ -1,4 +1,4 @@
-require("dotenv").config();
+require("dotenv").config({ path: "../.env" });
 
 module.exports = {
     GOOGLE_API_KEY: process.env.GOOGLE_API_KEY,

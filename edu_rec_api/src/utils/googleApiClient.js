@@ -1,7 +1,7 @@
 const axios = require("axios");
 
 const googleApiClient = axios.create({
-    baseURL: "GET https://customsearch.googleapis.com/customsearch/v1",
+    baseURL: "https://www.googleapis.com/customsearch/v1",
     timeout: 5000
 });
 
