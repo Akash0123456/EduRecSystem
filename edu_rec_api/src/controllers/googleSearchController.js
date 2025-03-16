@@ -3,6 +3,7 @@ const config = require("../config/googleConfig");
 
 exports.getSearchResults = async (req, res) => {
     try {
+
         const query = req.query.query;
 
         if (!query) {
@@ -20,20 +21,19 @@ exports.getSearchResults = async (req, res) => {
         
         const response = await googleApiClient.get("/", { params });
 
-        searchResults = response.data.items.map(item => ({
+        let searchResults = response.data.items.map(item => ({
             title: item.title,
             link: item.link
         }));
-
         
         if (response.status != 200) {
             console.log("Failed to successfully retrieve data");
         }
 
-        res.json({ searchResults });
+        res.status(200).json({ searchResults });
 
     } catch (error) {
-        console.error("Error fetching results for query from Google Custom Search JSON API");
+        console.error("Error fetching results for query from Google Custom Search JSON API", error.message);
         res.status(500).json({
             error: "Failed to fetch search results"
         });
