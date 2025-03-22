@@ -18,8 +18,6 @@ exports.getSearchResults = async (req, res) => {
             q: query,
             num: 10
         };
-        
-        console.log(params);
 
         const response = await googleApiClient.get("/", { params });
 
