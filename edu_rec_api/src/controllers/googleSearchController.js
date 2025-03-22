@@ -19,6 +19,8 @@ exports.getSearchResults = async (req, res) => {
             num: 10
         };
         
+        console.log(params);
+
         const response = await googleApiClient.get("/", { params });
 
         let searchResults = response.data.items.map(item => ({
