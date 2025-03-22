@@ -1,11 +1,15 @@
 const { OpenAI } = require("openai");
 
-const openai = new OpenAI({
-    baseURL: "https://openrouter.ai/api/v1",
-    apiKey: process.env.OPENROUTER_API_KEY
-});
+function getOpenAIClient() {
+    return new OpenAI({
+        baseURL: "https://openrouter.ai/api/v1",
+        apiKey: process.env.OPENROUTER_API_KEY
+    });
+}
+
 
 async function getChatCompletion(messages) {
+    const openai = getOpenAIClient();
     const response = await openai.chat.completions.create({
         model: 'deepseek/deepseek-r1:free',
         messages
