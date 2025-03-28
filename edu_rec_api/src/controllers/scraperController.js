@@ -1,31 +1,35 @@
-const { scrapeWebsite } = require('../utils/scraper');
+const { scrapeMultipleUrls } = require("../utils/scrapeMultipleUrls");
 
 exports.scrapeUrl = async (req, res) => {
-  const url = req.query.url;
+  const urlsParam = req.query.urls;
 
-  if (!url) {
+  if (!urlsParam) {
     return res.status(400).json({
-      error: "Missing 'url' query parameter"
+      error: "Missing 'urls' query parameter"
+    });
+  }
+
+  const urls = urlsParam.split(',').map(url => url.trim());
+
+  if (urls.length === 0) {
+    return res.status(400).json({
+      error: "No valid URLs provided"
     });
   }
 
   try {
-    const content = await scrapeWebsite(url);
-
-    if (!content) {
+    const scrapedResults = await scrapeMultipleUrls(urls, 3);
+    if (scrapedResults.length === 0) {
       return res.status(500).json({
-        error: "Scraping failed or returned no usable content"
+        error: "Failed to scrape any of the provided URLs"
       });
     }
 
-    res.status(200).json({
-      url,
-      scrapedContent: content
-    });
+    res.status(200).json({ scrapedResults });
   } catch (err) {
-    console.error(`Error scraping ${url}:`, err.message);
+    console.error("Scraping error:", err.message);
     res.status(500).json({
-      error: "An error occurred while scraping the URL"
+      error: "An error occurred during multi-site scraping"
     });
   }
 };
