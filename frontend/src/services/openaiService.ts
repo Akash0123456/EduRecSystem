@@ -140,3 +140,44 @@ export async function sendMessage(message: string): Promise<ChatResponse> {
     };
   }
 }
+
+/**
+ * Generate a descriptive chat name based on the user's message
+ * @param message The user's message
+ * @returns A short, descriptive name for the chat
+ */
+export async function generateChatName(message: string): Promise<string> {
+  // If no valid API key, generate a simple name
+  if (!hasValidApiKey || !openai) {
+    console.log("Using simple chat name as no valid API key was provided");
+    
+    // Return a truncated version of the message
+    return message.length > 30 ? `${message.substring(0, 30)}...` : message;
+  }
+  
+  try {
+    const completion = await openai.chat.completions.create({
+      model: "gpt-4o",
+      messages: [
+        {
+          role: "system",
+          content: `You are a helpful assistant that generates concise, descriptive titles for chat conversations.
+          Given a user's message, create a short (3-5 words), descriptive title that captures the main topic or question.
+          The title should be clear, specific, and relevant to the educational topic being discussed.
+          Do not use quotes or any special formatting. Just return the plain text title.`
+        },
+        {
+          role: "user",
+          content: `Generate a short, descriptive title for a chat that starts with this message: "${message}"`
+        }
+      ]
+    });
+
+    const chatName = completion.choices[0].message.content?.trim() || message;
+    return chatName;
+  } catch (error) {
+    console.error("Error generating chat name:", error);
+    // Fallback to using the message itself
+    return message.length > 30 ? `${message.substring(0, 30)}...` : message;
+  }
+}

@@ -8,12 +8,14 @@ interface ChatMessageProps {
   message: Message;
   sources?: ChatSource[];
   analysisMethodology?: string;
+  onRetry?: () => void;
 }
 
 export const ChatMessage: React.FC<ChatMessageProps> = ({
   message,
   sources,
   analysisMethodology,
+  onRetry,
 }) => {
   const isUser = message.role === 'user';
 
@@ -52,9 +54,14 @@ export const ChatMessage: React.FC<ChatMessageProps> = ({
                   <div className="space-y-2">
                     {sources.map((source, index) => (
                       <div key={index} className="flex justify-between">
-                        <div className="text-cyan-400 text-sm">
+                        <a 
+                          href={source.url} 
+                          target="_blank" 
+                          rel="noopener noreferrer" 
+                          className="text-cyan-400 text-sm font-bold hover:underline hover:text-cyan-300 transition-colors"
+                        >
                           {source.title}
-                        </div>
+                        </a>
                         <div className="text-gray-400 text-xs">
                           {source.url}
                         </div>
@@ -82,33 +89,13 @@ export const ChatMessage: React.FC<ChatMessageProps> = ({
               <Button
                 variant="ghost"
                 size="icon"
-                className="h-[30px] w-[26px] p-0"
-              >
-                <img
-                  className="w-[10.5px] h-3.5"
-                  alt="Copy"
-                  src="https://c.animaapp.com/m8rnoiwsmZEcq2/img/frame-1.svg"
-                />
-              </Button>
-              <Button
-                variant="ghost"
-                size="icon"
-                className="h-[30px] w-7 p-0"
-              >
-                <img
-                  className="w-[12.25px] h-3.5"
-                  alt="Bookmark"
-                  src="https://c.animaapp.com/m8rnoiwsmZEcq2/img/frame-3.svg"
-                />
-              </Button>
-              <Button
-                variant="ghost"
-                size="icon"
-                className="h-[30px] w-[30px] p-0"
+                className="h-[30px] w-[30px] p-0 hover:bg-cyan-500/20"
+                onClick={onRetry}
+                title="Retry response"
               >
                 <img
                   className="w-3.5 h-3.5"
-                  alt="Share"
+                  alt="Retry"
                   src="https://c.animaapp.com/m8rnoiwsmZEcq2/img/frame-4.svg"
                 />
               </Button>

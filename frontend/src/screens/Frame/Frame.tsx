@@ -14,7 +14,7 @@ import { Input } from "../../components/ui/input";
 import { ChatMessage } from "../../components/ChatMessage";
 import { Message, ChatSource, AssistantResponse } from "../../models/chat";
 import { generateId } from "../../utils/helpers";
-import { sendMessage } from "../../services/openaiService";
+import { sendMessage, generateChatName } from "../../services/openaiService";
 
 // Define the type for recent chats
 interface RecentChat {
@@ -36,6 +36,9 @@ export const Frame = (): JSX.Element => {
   const [assistantResponses, setAssistantResponses] = useState<Record<string, AssistantResponse>>({});
   const [inputValue, setInputValue] = useState<string>("");
   const [isLoading, setIsLoading] = useState<boolean>(false);
+  const [retryingMessageId, setRetryingMessageId] = useState<string | null>(null);
+  const [showFeedbackPrompt, setShowFeedbackPrompt] = useState<boolean>(false);
+  const [lastRetryMessageId, setLastRetryMessageId] = useState<string | null>(null);
   
   // Get current messages from active chat
   const currentChat = recentChats.find(chat => chat.id === activeChat);
@@ -99,14 +102,15 @@ export const Frame = (): JSX.Element => {
     setRecentChats(prev => 
       prev.map(chat => {
         if (chat.id === activeChat) {
-          // Update chat title if this is the first message
-          const newTitle = chat.messages.length === 0 
+          // For now, use a simple title - we'll update it after the API call if this is the first message
+          const isFirstMessage = chat.messages.length === 0;
+          const initialTitle = isFirstMessage 
             ? (inputValue.length > 30 ? `${inputValue.substring(0, 30)}...` : inputValue)
             : chat.title;
             
           return {
             ...chat,
-            title: newTitle,
+            title: initialTitle,
             messages: [...chat.messages, newUserMessage],
             time: "Just now"
           };
@@ -137,18 +141,56 @@ export const Frame = (): JSX.Element => {
         analysisMethodology: response.analysisMethodology,
       };
       
-      // Update states
-      setRecentChats(prev => 
-        prev.map(chat => {
-          if (chat.id === activeChat) {
-            return {
-              ...chat,
-              messages: [...chat.messages, assistantMessage]
-            };
-          }
-          return chat;
-        })
-      );
+      // Check if this is the first message to generate a chat name
+      const isFirstMessage = currentChat.messages.length === 1; // Only the user message
+      
+      if (isFirstMessage) {
+        // Generate a better chat name using OpenAI
+        try {
+          const chatName = await generateChatName(newUserMessage.content);
+          
+          // Update chat with the new name and the assistant message
+          setRecentChats(prev => 
+            prev.map(chat => {
+              if (chat.id === activeChat) {
+                return {
+                  ...chat,
+                  title: chatName,
+                  messages: [...chat.messages, assistantMessage]
+                };
+              }
+              return chat;
+            })
+          );
+        } catch (error) {
+          console.error("Error generating chat name:", error);
+          // Fall back to updating without changing the name
+          setRecentChats(prev => 
+            prev.map(chat => {
+              if (chat.id === activeChat) {
+                return {
+                  ...chat,
+                  messages: [...chat.messages, assistantMessage]
+                };
+              }
+              return chat;
+            })
+          );
+        }
+      } else {
+        // Just update with the new message
+        setRecentChats(prev => 
+          prev.map(chat => {
+            if (chat.id === activeChat) {
+              return {
+                ...chat,
+                messages: [...chat.messages, assistantMessage]
+              };
+            }
+            return chat;
+          })
+        );
+      }
       
       setAssistantResponses(prev => ({
         ...prev,
@@ -174,6 +216,80 @@ export const Frame = (): JSX.Element => {
       handleSendMessage();
     }
   };
+
+  // Handle retry for an assistant message
+  const handleRetry = async (messageId: string) => {
+    if (isLoading || !currentChat) return;
+    
+    // Find the user message that preceded this assistant message
+    const messageIndex = currentChat.messages.findIndex(m => m.id === messageId);
+    if (messageIndex <= 0) return; // No preceding user message found
+    
+    const userMessage = currentChat.messages[messageIndex - 1];
+    if (userMessage.role !== 'user') return; // Safety check
+    
+    setRetryingMessageId(messageId);
+    setIsLoading(true);
+    setShowFeedbackPrompt(false);
+    
+    try {
+      // Call OpenAI API with the same user message
+      const response = await sendMessage(userMessage.content);
+      
+      // Create new assistant message
+      const newAssistantMessage: Message = {
+        id: generateId(),
+        content: response.answer,
+        role: "assistant",
+        timestamp: new Date(),
+      };
+      
+      // Create assistant response
+      const assistantResponse: AssistantResponse = {
+        message: newAssistantMessage,
+        sources: response.sources,
+        analysisMethodology: response.analysisMethodology,
+      };
+      
+      // Update states - replace the old assistant message with the new one
+      setRecentChats(prev => 
+        prev.map(chat => {
+          if (chat.id === activeChat) {
+            const newMessages = [...chat.messages];
+            newMessages[messageIndex] = newAssistantMessage;
+            return {
+              ...chat,
+              messages: newMessages
+            };
+          }
+          return chat;
+        })
+      );
+      
+      // Update assistant responses
+      setAssistantResponses(prev => ({
+        ...prev,
+        [newAssistantMessage.id]: assistantResponse,
+      }));
+      
+      // Set last retry message ID for feedback prompt
+      setLastRetryMessageId(newAssistantMessage.id);
+      setShowFeedbackPrompt(true);
+      
+    } catch (error) {
+      console.error("Error retrying response:", error);
+    } finally {
+      setIsLoading(false);
+      setRetryingMessageId(null);
+    }
+  };
+  
+  // Handle feedback response
+  const handleFeedback = (liked: boolean) => {
+    // Here you could send the feedback to your analytics or logging system
+    console.log(`User ${liked ? 'liked' : 'disliked'} the new response`);
+    setShowFeedbackPrompt(false);
+  };
   return (
     <div className="flex flex-col bg-gray-900 min-h-screen">
       {/* Header */}
@@ -190,11 +306,7 @@ export const Frame = (): JSX.Element => {
               <div className="text-gray-400">Settings</div>
             </nav>
           </div>
-          <div className="flex items-center">
-            <Button variant="ghost" size="icon" className="rounded-full">
-              <SearchIcon className="h-5 w-5 text-gray-100" />
-            </Button>
-          </div>
+          {/* Removed search icon as requested */}
         </div>
       </header>
 
@@ -299,6 +411,7 @@ export const Frame = (): JSX.Element => {
                       message={message}
                       sources={assistantResponse?.sources}
                       analysisMethodology={assistantResponse?.analysisMethodology}
+                      onRetry={message.role === 'assistant' ? () => handleRetry(message.id) : undefined}
                     />
                   );
                 })}
@@ -306,7 +419,27 @@ export const Frame = (): JSX.Element => {
                 {isLoading && (
                   <div className="flex items-center justify-center p-4">
                     <div className="animate-pulse text-cyan-400">
-                      Generating educational response...
+                      {retryingMessageId ? "Generating new response..." : "Generating educational response..."}
+                    </div>
+                  </div>
+                )}
+                
+                {showFeedbackPrompt && lastRetryMessageId && (
+                  <div className="bg-[#1f293780] border border-gray-700 rounded-lg p-4 mb-4 max-w-md mx-auto">
+                    <p className="text-gray-100 text-center mb-3">Do you like the new response better?</p>
+                    <div className="flex justify-center space-x-4">
+                      <Button 
+                        className="bg-green-600 hover:bg-green-700 text-white"
+                        onClick={() => handleFeedback(true)}
+                      >
+                        Yes
+                      </Button>
+                      <Button 
+                        className="bg-red-600 hover:bg-red-700 text-white"
+                        onClick={() => handleFeedback(false)}
+                      >
+                        No
+                      </Button>
                     </div>
                   </div>
                 )}
@@ -335,13 +468,7 @@ export const Frame = (): JSX.Element => {
                   onKeyPress={handleKeyPress}
                   disabled={isLoading || !activeChat}
                 />
-                <Button variant="ghost" size="icon" className="mr-2" disabled={!activeChat}>
-                  <img
-                    className="w-3 h-4"
-                    alt="Microphone"
-                    src="https://c.animaapp.com/m8rnoiwsmZEcq2/img/frame-6.svg"
-                  />
-                </Button>
+                {/* Removed voice message icon as requested */}
                 <Button 
                   className="bg-cyan-500 hover:bg-cyan-600 text-white rounded-lg h-10 px-4 mr-2 flex items-center gap-2"
                   onClick={handleSendMessage}
