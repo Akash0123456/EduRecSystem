@@ -32,6 +32,27 @@ export const Box = (): JSX.Element => {
     agreeTerms: "",
   });
 
+  const [signInData, setSignInData] = useState({
+    email: "",
+    password: "",
+  });
+  
+  const [signInErrors, setSignInErrors] = useState({
+    email: "",
+    password: "",
+    general: ""
+  });
+
+  const [isSigningIn, setIsSigningIn] = useState(false);
+
+  const handleSignInInputChange = (e) => {
+    const { id, value } = e.target;
+    const fieldName = id.replace("signin-", "");
+    setSignInData({ ...signInData, [fieldName]: value });
+    // Clear error when user starts typing
+    setSignInErrors({ ...signInErrors, [fieldName]: "", general: "" });
+  };
+
   const handleInputChange = (e) => {
     const { id, value } = e.target;
     setFormData({ ...formData, [id]: value });
@@ -44,8 +65,50 @@ export const Box = (): JSX.Element => {
     setErrors({ ...errors, agreeTerms: "" });
   };
 
-  const handleSignIn = () => {
+  const handleSignIn = async () => {  
+    setSignInErrors({
+      email: "",
+      password: "",
+      general: ""
+    });
+
+    const newErrors = {};
+
+    if (!signInData.email.trim()) {
+      newErrors.email = "Email is required";
+    }
+  
+    if (!signInData.password) {
+      newErrors.password = "Password is required";
+    }
+  
+    if (Object.keys(newErrors).length > 0) {
+      setSignInErrors({ ...signInErrors, ...newErrors });
+      return;
+    }
+  
+  setIsSigningIn(true);
+  
+  try {
+    // Sign in with Firebase Authentication
+    await signInWithEmailAndPassword(auth, signInData.email, signInData.password);
+    // If successful, navigate to dashboard
     navigate("/dashboard");
+  } catch (error: any) {
+    console.error("Firebase Sign-In Error: ", error.message);
+    // Handle different error codes with user-friendly messages
+    if (error.code === "auth/invalid-credential" || error.code === "auth/user-not-found" || error.code === "auth/wrong-password") {
+      setSignInErrors((prev) => ({ ...prev, general: "Invalid email or password" }));
+    } else if (error.code === "auth/too-many-requests") {
+      setSignInErrors((prev) => ({ ...prev, general: "Too many failed login attempts, try again later" }));
+    } else if (error.code === "auth/invalid-email") {
+      setSignInErrors((prev) => ({ ...prev, email: "Invalid email format" }));
+    } else {
+      setSignInErrors((prev) => ({ ...prev, general: "Failed to sign in. Please try again." }));
+    }
+  } finally {
+    setIsSigningIn(false);
+  }
   };
 
   const handleSignUp = async () => {
@@ -200,9 +263,14 @@ export const Box = (): JSX.Element => {
                   <Input
                     id="signin-email"
                     type="email"
+                    value={signInData.email}
+                    onChange={handleSignInInputChange}
                     placeholder="Enter your email"
                     className="bg-[#1a2235] border-0"
                   />
+                  {signInErrors.email && (
+                    <p className="text-xs text-red-500 mt-1">{signInErrors.email}</p>
+                  )}
                 </div>
 
                 <div className="space-y-1">
@@ -212,14 +280,21 @@ export const Box = (): JSX.Element => {
                   <Input
                     id="signin-password"
                     type="password"
+                    value={signInData.password}
+                    onChange={handleSignInInputChange}
                     placeholder="Enter your password"
                     className="bg-[#1a2235] border-0"
                   />
+                  {signInErrors.password && (
+                    <p className="text-xs text-red-500 mt-1">{signInErrors.password}</p>
+                  )}
                 </div>
 
                 <div className="flex items-center justify-between">
                   <div className="flex items-center space-x-2">
-                    <Checkbox id="remember" />
+                    <Checkbox 
+                    id="remember"
+                    className="border-white text-gray-400 data-[state=checked]:bg-white data-[state=checked]:text-black"/>
                     <label htmlFor="remember" className="text-sm text-gray-400">
                       Remember me
                     </label>
@@ -235,6 +310,11 @@ export const Box = (): JSX.Element => {
                 >
                   Sign In
                 </Button>
+                {signInErrors.general && (
+                  <p className="text-xs text-red-500 text-center mt-2">
+                    {signInErrors.general}
+                  </p>
+                )}
 
                 <div className="relative my-4">
                   <Separator className="bg-gray-700" />
