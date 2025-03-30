@@ -1,5 +1,6 @@
-import { MessageSquareIcon, SearchIcon, SendIcon } from "lucide-react";
+import { MessageSquareIcon, SendIcon } from "lucide-react";
 import React, { useState, useRef, useEffect } from "react";
+import { Header } from "../../components/Header";
 import {
   Avatar,
   AvatarFallback,
@@ -90,13 +91,13 @@ export const Frame = (): JSX.Element => {
   const handleSendMessage = async () => {
     if (!inputValue.trim() || isLoading || !currentChat) return;
     
-    // Create new user message
-    const newUserMessage: Message = {
-      id: generateId(),
-      content: inputValue,
-      role: "user",
-      timestamp: new Date(),
-    };
+      // Create new user message
+      const newUserMessage: Message = {
+        id: generateId(),
+        content: inputValue, // User messages are always strings
+        role: "user",
+        timestamp: new Date(),
+      };
     
     // Update chat with new message
     setRecentChats(prev => 
@@ -129,7 +130,7 @@ export const Frame = (): JSX.Element => {
       // Create assistant message
       const assistantMessage: Message = {
         id: generateId(),
-        content: response.answer,
+        content: response.answer, // This is now a structured content object
         role: "assistant",
         timestamp: new Date(),
       };
@@ -145,9 +146,13 @@ export const Frame = (): JSX.Element => {
       const isFirstMessage = currentChat.messages.length === 1; // Only the user message
       
       if (isFirstMessage) {
-        // Generate a better chat name using OpenAI
-        try {
-          const chatName = await generateChatName(newUserMessage.content);
+          // Generate a better chat name using OpenAI (user messages are always strings)
+          try {
+            // TypeScript doesn't know that user messages are always strings
+            const userMessageContent = typeof newUserMessage.content === 'string' 
+              ? newUserMessage.content 
+              : 'New Chat';
+            const chatName = await generateChatName(userMessageContent);
           
           // Update chat with the new name and the assistant message
           setRecentChats(prev => 
@@ -228,13 +233,18 @@ export const Frame = (): JSX.Element => {
     const userMessage = currentChat.messages[messageIndex - 1];
     if (userMessage.role !== 'user') return; // Safety check
     
+    // Ensure we have a string content for the API call
+    const userContent = typeof userMessage.content === 'string' 
+      ? userMessage.content 
+      : 'Could not retrieve user message';
+    
     setRetryingMessageId(messageId);
     setIsLoading(true);
     setShowFeedbackPrompt(false);
     
     try {
       // Call OpenAI API with the same user message
-      const response = await sendMessage(userMessage.content);
+      const response = await sendMessage(userContent);
       
       // Create new assistant message
       const newAssistantMessage: Message = {
@@ -292,23 +302,7 @@ export const Frame = (): JSX.Element => {
   };
   return (
     <div className="flex flex-col bg-gray-900 min-h-screen">
-      {/* Header */}
-      <header className="w-full h-[69px] bg-[#111827f2] border-b border-gray-800 fixed top-0 z-10">
-        <div className="max-w-7xl mx-auto h-full px-6 flex items-center justify-between">
-          <div className="flex items-center space-x-8">
-            <div className="font-bold text-2xl">
-              <span className="text-gray-100">EduRec</span>
-              <span className="text-cyan-400">.</span>
-            </div>
-            <nav className="flex space-x-6">
-              <div className="text-gray-400">Home</div>
-              <div className="text-gray-400">About</div>
-              <div className="text-gray-400">Settings</div>
-            </nav>
-          </div>
-          {/* Removed search icon as requested */}
-        </div>
-      </header>
+      <Header />
 
       {/* Main Content */}
       <div className="flex pt-[69px] h-screen">
@@ -331,7 +325,6 @@ export const Frame = (): JSX.Element => {
               </div>
               <div className="ml-4">
                 <div className="text-gray-100 text-base">Test User</div>
-                <div className="text-gray-400 text-sm">Premium Member</div>
               </div>
             </div>
           </div>
@@ -456,29 +449,31 @@ export const Frame = (): JSX.Element => {
             )}
           </div>
 
-          {/* Chat Input */}
-          <div className="border-t border-gray-800 p-4">
-            <div className="max-w-3xl mx-auto relative">
-              <div className="bg-[#1f293780] rounded-xl flex items-center">
-                <Input
-                  className="bg-transparent border-0 h-14 px-4 text-gray-100 focus-visible:ring-0 focus-visible:ring-offset-0"
-                  placeholder="Ask an educational question..."
-                  value={inputValue}
-                  onChange={handleInputChange}
-                  onKeyPress={handleKeyPress}
-                  disabled={isLoading || !activeChat}
-                />
-                {/* Removed voice message icon as requested */}
-                <Button 
-                  className="bg-cyan-500 hover:bg-cyan-600 text-white rounded-lg h-10 px-4 mr-2 flex items-center gap-2"
-                  onClick={handleSendMessage}
-                  disabled={isLoading || !inputValue.trim() || !activeChat}
-                >
-                  <SendIcon className="w-4 h-4" />
-                </Button>
+          {/* Chat Input - Only show when there's an active chat */}
+          {activeChat && (
+            <div className="border-t border-gray-800 p-4">
+              <div className="max-w-3xl mx-auto relative">
+                <div className="bg-[#1f293780] rounded-xl flex items-center">
+                  <Input
+                    className="bg-transparent border-0 h-14 px-4 text-gray-100 focus-visible:ring-0 focus-visible:ring-offset-0"
+                    placeholder="Ask an educational question..."
+                    value={inputValue}
+                    onChange={handleInputChange}
+                    onKeyPress={handleKeyPress}
+                    disabled={isLoading}
+                  />
+                  {/* Removed voice message icon as requested */}
+                  <Button 
+                    className="bg-cyan-500 hover:bg-cyan-600 text-white rounded-lg h-10 px-4 mr-2 flex items-center gap-2"
+                    onClick={handleSendMessage}
+                    disabled={isLoading || !inputValue.trim()}
+                  >
+                    <SendIcon className="w-4 h-4" />
+                  </Button>
+                </div>
               </div>
             </div>
-          </div>
+          )}
         </main>
       </div>
     </div>

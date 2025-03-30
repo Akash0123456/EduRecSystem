@@ -3,6 +3,7 @@ import { Card, CardContent, CardHeader, CardTitle } from './ui/card';
 import { Separator } from './ui/separator';
 import { Button } from './ui/button';
 import { Message, ChatSource } from '../models/chat';
+import { HybridMathRenderer } from './HybridMathRenderer';
 
 interface ChatMessageProps {
   message: Message;
@@ -23,7 +24,13 @@ export const ChatMessage: React.FC<ChatMessageProps> = ({
     return (
       <div className="flex justify-end mb-6">
         <div className="bg-[#06b6d433] rounded-[16px_2px_16px_16px] p-4 max-w-[338px]">
-          <div className="text-cyan-50 text-base">{message.content}</div>
+          <div className="text-cyan-50 text-base">
+            {typeof message.content === 'string' ? (
+              <HybridMathRenderer content={message.content} />
+            ) : (
+              'User message'
+            )}
+          </div>
         </div>
       </div>
     );
@@ -41,8 +48,71 @@ export const ChatMessage: React.FC<ChatMessageProps> = ({
             />
           </div>
           <div className="ml-[52px] space-y-4 flex-1">
-            <div className="text-gray-100 text-base leading-4">
-              {message.content}
+            <div className="text-gray-100 text-base space-y-4">
+              {typeof message.content === 'string' ? (
+                <div>
+                  <HybridMathRenderer content={message.content} />
+                </div>
+              ) : (
+                message.content.sections?.map((section, idx) => {
+                  switch (section.type) {
+                    case 'heading':
+                      return (
+                        <h3 key={idx} className="text-lg font-semibold text-cyan-400 mt-2">
+                          <HybridMathRenderer content={section.content} />
+                        </h3>
+                      );
+                    case 'paragraph':
+                      return (
+                        <div key={idx} className="leading-6">
+                          <HybridMathRenderer content={section.content} />
+                        </div>
+                      );
+                    case 'numbered_list':
+                      return (
+                        <div key={idx} className="space-y-2">
+                          {section.content && (
+                            <div className="font-medium">
+                              <HybridMathRenderer content={section.content} />
+                            </div>
+                          )}
+                          <ol className="list-decimal pl-5 space-y-1">
+                            {section.items?.map((item, itemIdx) => (
+                              <li key={itemIdx} className="pl-1">
+                                <HybridMathRenderer content={item} />
+                              </li>
+                            ))}
+                          </ol>
+                        </div>
+                      );
+                    case 'bullet_list':
+                      return (
+                        <div key={idx} className="space-y-2">
+                          {section.content && (
+                            <div className="font-medium">
+                              <HybridMathRenderer content={section.content} />
+                            </div>
+                          )}
+                          <ul className="list-disc pl-5 space-y-1">
+                            {section.items?.map((item, itemIdx) => (
+                              <li key={itemIdx} className="pl-1">
+                                <HybridMathRenderer content={item} />
+                              </li>
+                            ))}
+                          </ul>
+                        </div>
+                      );
+                    case 'equation':
+                      return (
+                        <div key={idx} className="py-2 px-4 bg-[#111827] rounded my-2 overflow-x-auto">
+                          <HybridMathRenderer content={`$$${section.content}$$`} />
+                        </div>
+                      );
+                    default:
+                      return <p key={idx}>{section.content}</p>;
+                  }
+                })
+              )}
             </div>
 
             {sources && sources.length > 0 && (
@@ -80,7 +150,9 @@ export const ChatMessage: React.FC<ChatMessageProps> = ({
                   </CardTitle>
                 </CardHeader>
                 <CardContent className="p-4 pt-2 text-gray-300 text-sm space-y-[20px]">
-                  <p>{analysisMethodology}</p>
+                  <div>
+                    <HybridMathRenderer content={analysisMethodology} />
+                  </div>
                 </CardContent>
               </Card>
             )}
