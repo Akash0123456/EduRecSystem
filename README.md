@@ -2,6 +2,31 @@
 
 EduRec is an AI-powered educational assistant designed exclusively for academic purposes. It provides educational responses with credible sources and detailed analysis methodology.
 
+## Project Structure
+
+The project is organized into the following directories:
+
+```
+EduRecSystem/
+├── frontend/           # React frontend application
+│   ├── src/
+│   │   ├── components/ # UI components
+│   │   ├── screens/    # Page components
+│   │   ├── services/   # API services
+│   │   ├── models/     # Data models
+│   │   └── utils/      # Utility functions
+│   └── public/         # Static assets
+│
+├── backend/            # Node.js backend API
+│   ├── src/
+│   │   ├── controllers/ # API controllers
+│   │   ├── routes/      # API routes
+│   │   └── utils/       # Utility functions
+│   └── config/          # Configuration files
+│
+└── extra/              # Additional files and resources
+```
+
 ## Features
 
 - **Educational Focus**: Strictly designed for academic and learning purposes
@@ -9,46 +34,48 @@ EduRec is an AI-powered educational assistant designed exclusively for academic 
 - **Analysis Methodology**: Transparent explanation of how answers are formulated
 - **User-Friendly Interface**: Clean, modern UI with dark theme
 
-## Project Structure
-
-The project consists of two main parts:
-
-1. **Frontend (edu_rec_system)**: React application with TypeScript and Tailwind CSS
-2. **Backend API (edu_rec_api)**: Node.js API server (not fully implemented yet)
-
 ## Getting Started
 
-### Prerequisites
+### Frontend
 
-- Node.js (v16 or higher)
-- npm or yarn
-- OpenAI API key
-
-### Installation
-
-1. Clone the repository
+1. Navigate to the frontend directory:
    ```
-   git clone https://github.com/kchabra/EduRecSystem.git
-   cd EduRecSystem
+   cd frontend
    ```
 
-2. Install dependencies for the frontend
+2. Install dependencies:
    ```
-   cd edu_rec_system
    npm install
    ```
 
-3. Create a `.env` file in the `edu_rec_system` directory with your OpenAI API key
+3. Create a `.env` file with your OpenAI API key:
    ```
    VITE_OPENAI_API_KEY=your_openai_api_key_here
    ```
 
-4. Start the development server
+4. Start the development server:
    ```
    npm run dev
    ```
 
 5. Open your browser and navigate to `http://localhost:5173` (or the port shown in your terminal)
+
+### Backend
+
+1. Navigate to the backend directory:
+   ```
+   cd backend
+   ```
+
+2. Install dependencies:
+   ```
+   npm install
+   ```
+
+3. Start the server:
+   ```
+   npm start
+   ```
 
 ## Usage
 
@@ -68,7 +95,7 @@ The project consists of two main parts:
 - React Router for navigation
 - OpenAI API for generating educational responses
 
-### Backend (planned)
+### Backend
 - Node.js
 - Express
 - OpenAI API integration
