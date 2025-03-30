@@ -11,6 +11,8 @@ import {
   TabsList,
   TabsTrigger,
 } from "../../components/ui/tabs";
+import { createUserWithEmailAndPassword } from "firebase/auth";
+import { auth } from "../../firebase";
 
 export const Box = (): JSX.Element => {
   const navigate = useNavigate();
@@ -46,7 +48,7 @@ export const Box = (): JSX.Element => {
     navigate("/dashboard");
   };
 
-  const handleSignUp = () => {
+  const handleSignUp = async () => {
     // Basic validation
     const newErrors = {};
     
@@ -79,8 +81,18 @@ export const Box = (): JSX.Element => {
       return;
     }
     
-    // If validation passes, navigate to dashboard (in a real app, you'd handle registration first)
-    navigate("/dashboard");
+    try {
+      await createUserWithEmailAndPassword(auth, formData.email, formData.password);
+      navigate("/dashboard");
+    } catch (error: any) {
+      console.error("Firebase Email and Password Sign-Up Error: ", error.message);
+      if (error.code === "auth/email-already-in-use") {
+        setErrors((prev) => ({ ...prev, email: "Email already in use" }));
+      } else {
+        setErrors((prev) => ({ ...prev, email: "Failed to sign up" }));
+      }
+    }
+    
   };
 
   // Platform features data
