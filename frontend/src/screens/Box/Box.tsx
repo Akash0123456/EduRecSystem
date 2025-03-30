@@ -11,7 +11,7 @@ import {
   TabsList,
   TabsTrigger,
 } from "../../components/ui/tabs";
-import { createUserWithEmailAndPassword, GoogleAuthProvider, signInWithPopup } from "firebase/auth";
+import { createUserWithEmailAndPassword, GoogleAuthProvider, GithubAuthProvider, signInWithPopup, signInWithEmailAndPassword } from "firebase/auth";
 import { auth } from "../../firebase";
 
 export const Box = (): JSX.Element => {
@@ -103,6 +103,16 @@ export const Box = (): JSX.Element => {
       } catch (error: any) {
         console.error("Google Sign In Error: ", error.message);
       }
+  }
+
+  const handleGithubSignUp = async () => {
+    const provider = new GithubAuthProvider();
+    try {
+      await signInWithPopup(auth, provider);
+      navigate('/dashboard')
+    } catch (error: any) {
+      console.error("Google Sign In Error: ", error.message);
+    }
   }
 
   // Platform features data
@@ -250,6 +260,7 @@ export const Box = (): JSX.Element => {
                   <Button
                     variant="outline"
                     className="bg-[#1a2235] border-0 hover:bg-[#232b3d]"
+                    onClick={handleGithubSignUp}
                   >
                     <svg className="w-5 h-5 mr-2" viewBox="0 0 24 24">
                       <path
@@ -394,6 +405,7 @@ export const Box = (): JSX.Element => {
                   <Button
                     variant="outline"
                     className="bg-[#1a2235] border-0 hover:bg-[#232b3d]"
+                    onClick={handleGithubSignUp}
                   >
                     <svg className="w-5 h-5 mr-2" viewBox="0 0 24 24">
                       <path
