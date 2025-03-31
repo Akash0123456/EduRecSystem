@@ -8,11 +8,13 @@ app.use(express.json());
 const googleSearchRoutes = require("./routes/googleSearchRoutes");
 const openaiRoutes = require("./routes/openaiRoutes");
 const scraperRoutes = require("./routes/scraperRoutes");
+const queryRoutes = require("./routes/queryRoutes")
 
 // Create routes
 app.use("/search", googleSearchRoutes);
 app.use("/chat", openaiRoutes);
 app.use("/scrape", scraperRoutes);
+app.use("/query", queryRoutes);
 
 app.get("/", (req, res) => {
     res.send("Hello, World!");
