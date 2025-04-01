@@ -194,6 +194,11 @@ export async function sendMessage(message: string): Promise<ChatResponse> {
     return mockResponse;
   }
   
+  // Get user settings from localStorage
+  const responseVerbosity = localStorage.getItem('responseVerbosity') || 'balanced';
+  const citationStyle = localStorage.getItem('citationStyle') || 'apa';
+  const includeSources = localStorage.getItem('includeSources') !== 'false';
+  
   try {
     const completion = await openai.chat.completions.create({
       model: "gpt-4o",
@@ -209,9 +214,17 @@ export async function sendMessage(message: string): Promise<ChatResponse> {
           4. Appropriate for educational settings
           
           For each response, you must:
-          1. Provide a clear, concise answer to the question, structured in a way that's easy to read
-          2. Include 2-4 specific, credible sources with titles and URLs
+          1. Provide a clear answer to the question, structured in a way that's easy to read
+          2. ${includeSources ? 'Include 2-4 specific, credible sources with titles and URLs' : 'You may reference sources in your answer, but do not include a separate sources section'}
           3. Include an "Analysis Methodology" section that explains your approach to answering the question
+          
+          Response verbosity: ${responseVerbosity}
+          ${responseVerbosity === 'concise' ? '- Keep your answers brief and to the point, focusing only on the most essential information' : ''}
+          ${responseVerbosity === 'balanced' ? '- Provide a moderate level of detail, balancing thoroughness with clarity' : ''}
+          ${responseVerbosity === 'detailed' ? '- Provide comprehensive, in-depth explanations with additional context and examples where appropriate' : ''}
+          
+          Citation style: ${citationStyle}
+          When referencing sources, use ${citationStyle.toUpperCase()} citation style.
           
           Format your response as a JSON object with the following structure:
           {
@@ -249,7 +262,7 @@ export async function sendMessage(message: string): Promise<ChatResponse> {
                 }
               ]
             },
-            "sources": [
+            ${includeSources ? `"sources": [
               {
                 "title": "Source Title 1",
                 "url": "https://example.edu/source1"
@@ -258,7 +271,7 @@ export async function sendMessage(message: string): Promise<ChatResponse> {
                 "title": "Source Title 2",
                 "url": "https://example.edu/source2"
               }
-            ],
+            ],` : `"sources": [],`}
             "analysisMethodology": "Explanation of how you approached answering this question, including the types of sources consulted and the analytical framework used."
           }
           
