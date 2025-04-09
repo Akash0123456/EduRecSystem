@@ -1,4 +1,4 @@
-import { MessageSquareIcon, SendIcon } from "lucide-react";
+import { MessageSquareIcon, SendIcon, SearchIcon } from "lucide-react";
 import React, { useState, useRef, useEffect } from "react";
 import { Header } from "../../components/Header";
 import {
@@ -13,7 +13,7 @@ import {
 } from "../../components/ui/card";
 import { Input } from "../../components/ui/input";
 import { ChatMessage } from "../../components/ChatMessage";
-import { Message, ChatSource, AssistantResponse } from "../../models/chat";
+import { Message, ChatSource, AssistantResponse, isStringContent } from "../../models/chat";
 import { generateId } from "../../utils/helpers";
 import { sendMessage, generateChatName } from "../../services/openaiService";
 
@@ -40,10 +40,133 @@ export const Frame = (): JSX.Element => {
   const [retryingMessageId, setRetryingMessageId] = useState<string | null>(null);
   const [showFeedbackPrompt, setShowFeedbackPrompt] = useState<boolean>(false);
   const [lastRetryMessageId, setLastRetryMessageId] = useState<string | null>(null);
+  const [searchQuery, setSearchQuery] = useState<string>("");
+  const [searchResults, setSearchResults] = useState<{
+    chatId: string;
+    messageId: string;
+    content: string;
+    context: string;
+  }[]>([]);
+  const [isSearching, setIsSearching] = useState<boolean>(false);
+  const [highlightedMessageId, setHighlightedMessageId] = useState<string | null>(null);
   
   // Get current messages from active chat
   const currentChat = recentChats.find(chat => chat.id === activeChat);
   const messages = currentChat ? currentChat.messages : [];
+
+  // Search through all chats and messages
+  const handleSearch = () => {
+    if (!searchQuery.trim()) {
+      setSearchResults([]);
+      setIsSearching(false);
+      return;
+    }
+
+    setIsSearching(true);
+    const query = searchQuery.toLowerCase();
+    const results: {
+      chatId: string;
+      messageId: string;
+      content: string;
+      context: string;
+    }[] = [];
+
+    // Search through all chats and their messages
+    recentChats.forEach(chat => {
+      chat.messages.forEach(message => {
+        let messageContent = "";
+        
+        // Extract content based on message type
+        if (isStringContent(message.content)) {
+          messageContent = message.content.toLowerCase();
+        } else {
+          // For structured content, search through all sections
+          message.content.sections.forEach(section => {
+            if (section.content) {
+              messageContent += section.content.toLowerCase() + " ";
+            }
+            if (section.items) {
+              messageContent += section.items.join(" ").toLowerCase() + " ";
+            }
+          });
+        }
+        
+        // Check if message content contains the search query
+        if (messageContent.includes(query)) {
+          // Create a context snippet
+          let context = messageContent;
+          if (context.length > 100) {
+            // Find the position of the query in the content
+            const queryIndex = context.indexOf(query);
+            // Create a snippet around the query
+            const startIndex = Math.max(0, queryIndex - 40);
+            const endIndex = Math.min(context.length, queryIndex + query.length + 40);
+            context = (startIndex > 0 ? "..." : "") + 
+                     context.substring(startIndex, endIndex) + 
+                     (endIndex < context.length ? "..." : "");
+          }
+          
+          results.push({
+            chatId: chat.id,
+            messageId: message.id,
+            content: messageContent,
+            context: context
+          });
+        }
+      });
+    });
+
+    setSearchResults(results);
+  };
+
+  // Handle search input change
+  const handleSearchInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setSearchQuery(e.target.value);
+    if (!e.target.value.trim()) {
+      setSearchResults([]);
+      setIsSearching(false);
+    }
+  };
+
+  // Handle search key press (Enter to search)
+  const handleSearchKeyPress = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === "Enter") {
+      handleSearch();
+    }
+  };
+
+  // Navigate to a specific message from search results
+  const navigateToMessage = (chatId: string, messageId: string) => {
+    // Set the active chat
+    handleSelectChat(chatId);
+    // Highlight the message
+    setHighlightedMessageId(messageId);
+    // Clear search results
+    setIsSearching(false);
+    
+    // Scroll to the message after a short delay to ensure the chat is loaded
+    setTimeout(() => {
+      const messageElement = document.getElementById(`message-${messageId}`);
+      if (messageElement) {
+        messageElement.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        // Add a temporary highlight class
+        messageElement.classList.add('bg-cyan-500/10');
+        // Remove the highlight after a few seconds
+        setTimeout(() => {
+          messageElement.classList.remove('bg-cyan-500/10');
+          setHighlightedMessageId(null);
+        }, 3000);
+      }
+    }, 100);
+  };
+
+  // Clear search
+  const clearSearch = () => {
+    setSearchQuery("");
+    setSearchResults([]);
+    setIsSearching(false);
+    setHighlightedMessageId(null);
+  };
   
   // Ref for chat container to auto-scroll
   const chatContainerRef = useRef<HTMLDivElement>(null);
@@ -124,8 +247,11 @@ export const Frame = (): JSX.Element => {
     setIsLoading(true);
     
     try {
-      // Call OpenAI API
-      const response = await sendMessage(newUserMessage.content);
+      // Call OpenAI API - ensure we have a string
+      const messageContent = isStringContent(newUserMessage.content) 
+        ? newUserMessage.content 
+        : JSON.stringify(newUserMessage.content);
+      const response = await sendMessage(messageContent);
       
       // Create assistant message
       const assistantMessage: Message = {
@@ -148,8 +274,8 @@ export const Frame = (): JSX.Element => {
       if (isFirstMessage) {
           // Generate a better chat name using OpenAI (user messages are always strings)
           try {
-            // TypeScript doesn't know that user messages are always strings
-            const userMessageContent = typeof newUserMessage.content === 'string' 
+            // Use the isStringContent helper to check if content is a string
+            const userMessageContent = isStringContent(newUserMessage.content) 
               ? newUserMessage.content 
               : 'New Chat';
             const chatName = await generateChatName(userMessageContent);
@@ -234,7 +360,7 @@ export const Frame = (): JSX.Element => {
     if (userMessage.role !== 'user') return; // Safety check
     
     // Ensure we have a string content for the API call
-    const userContent = typeof userMessage.content === 'string' 
+    const userContent = isStringContent(userMessage.content)
       ? userMessage.content 
       : 'Could not retrieve user message';
     
@@ -301,19 +427,19 @@ export const Frame = (): JSX.Element => {
     setShowFeedbackPrompt(false);
   };
   return (
-    <div className="flex flex-col bg-gray-900 min-h-screen">
+    <div className="flex flex-col bg-background min-h-screen">
       <Header />
 
       {/* Main Content */}
       <div className="flex pt-[69px] h-screen">
         {/* Sidebar */}
-        <aside className="w-80 border-r border-gray-800 flex flex-col h-full">
+        <aside className="w-80 border-r border-border flex flex-col h-full">
           {/* User Profile */}
           <div className="p-6">
             <div className="flex items-center">
               <div className="relative">
-                <Avatar className="h-12 w-12 bg-gray-700">
-                  <AvatarFallback className="text-gray-300">TU</AvatarFallback>
+                <Avatar className="h-12 w-12 bg-secondary">
+                  <AvatarFallback className="text-secondary-foreground">TU</AvatarFallback>
                 </Avatar>
                 <div className="absolute bottom-0 right-0 bg-cyan-500 rounded-full w-5 h-5 flex items-center justify-center">
                   <img
@@ -323,9 +449,9 @@ export const Frame = (): JSX.Element => {
                   />
                 </div>
               </div>
-              <div className="ml-4">
-                <div className="text-gray-100 text-base">Test User</div>
-              </div>
+                <div className="ml-4">
+                  <div className="text-foreground text-base">Test User</div>
+                </div>
             </div>
           </div>
 
@@ -338,36 +464,117 @@ export const Frame = (): JSX.Element => {
             <span>Start New Chat</span>
           </Button>
 
-          {/* Recent Chats */}
-          <div className="p-6 flex-1 overflow-auto">
-            <div className="text-gray-400 text-sm mb-2">Recent Chats</div>
-            <div className="space-y-2">
-              {recentChats.map((chat) => (
-                <Card
-                  key={chat.id}
-                  className={`${chat.active ? "bg-[#1f293780]" : "bg-transparent"} rounded-lg hover:bg-[#1f293780] transition-colors cursor-pointer`}
-                  onClick={() => handleSelectChat(chat.id)}
+          {/* Search Input */}
+          <div className="px-6 pt-4">
+            <div className="relative">
+              <Input
+                className="bg-card border-border pl-9 pr-9 h-10 text-sm"
+                placeholder="Search conversations..."
+                value={searchQuery}
+                onChange={handleSearchInputChange}
+                onKeyPress={handleSearchKeyPress}
+              />
+              <SearchIcon className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+              {searchQuery && (
+                <button 
+                  className="absolute right-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground hover:text-foreground"
+                  onClick={clearSearch}
                 >
-                  <CardContent className="p-3">
-                    <div className="flex items-start">
-                      <div className="flex items-center justify-center mt-2.5">
-                        <img
-                          className="w-3.5 h-4"
-                          alt="Chat icon"
-                          src={chat.icon}
-                        />
-                      </div>
-                      <div className="ml-[26px]">
-                        <div className="text-gray-100 text-sm font-medium">
-                          {chat.title}
-                        </div>
-                        <div className="text-gray-400 text-xs">{chat.time}</div>
-                      </div>
-                    </div>
-                  </CardContent>
-                </Card>
-              ))}
+                  ✕
+                </button>
+              )}
             </div>
+            <Button 
+              className="w-full mt-2 bg-secondary hover:bg-secondary/80 text-foreground text-sm h-8"
+              onClick={handleSearch}
+              disabled={!searchQuery.trim()}
+            >
+              Search
+            </Button>
+          </div>
+
+          {/* Search Results or Recent Chats */}
+          <div className="p-6 flex-1 overflow-auto">
+            {isSearching && searchResults.length > 0 ? (
+              <>
+                <div className="flex justify-between items-center mb-2">
+                  <div className="text-muted-foreground text-sm">Search Results ({searchResults.length})</div>
+                  <button 
+                    className="text-cyan-500 hover:text-cyan-400 text-xs"
+                    onClick={clearSearch}
+                  >
+                    Clear
+                  </button>
+                </div>
+                <div className="space-y-2">
+                  {searchResults.map((result, index) => {
+                    const chat = recentChats.find(c => c.id === result.chatId);
+                    return (
+                      <Card
+                        key={`${result.chatId}-${result.messageId}-${index}`}
+                        className="bg-card rounded-lg hover:bg-secondary/50 transition-colors cursor-pointer"
+                        onClick={() => navigateToMessage(result.chatId, result.messageId)}
+                      >
+                        <CardContent className="p-3">
+                          <div className="flex items-start">
+                            <div className="flex items-center justify-center mt-2.5">
+                              <img
+                                className="w-3.5 h-4"
+                                alt="Chat icon"
+                                src={chat?.icon || "https://c.animaapp.com/m8rnoiwsmZEcq2/img/frame-9.svg"}
+                              />
+                            </div>
+                            <div className="ml-[26px]">
+                              <div className="text-foreground text-sm font-medium">
+                                {chat?.title || "Chat"}
+                              </div>
+                              <div className="text-muted-foreground text-xs mt-1 line-clamp-2">
+                                {result.context}
+                              </div>
+                            </div>
+                          </div>
+                        </CardContent>
+                      </Card>
+                    );
+                  })}
+                </div>
+              </>
+            ) : (
+              <>
+                <div className="text-muted-foreground text-sm mb-2">
+                  {isSearching && searchResults.length === 0 
+                    ? "No results found" 
+                    : "Recent Chats"}
+                </div>
+                <div className="space-y-2">
+                  {recentChats.map((chat) => (
+                    <Card
+                      key={chat.id}
+                      className={`${chat.active ? "bg-secondary/50" : "bg-transparent"} rounded-lg hover:bg-secondary/50 transition-colors cursor-pointer`}
+                      onClick={() => handleSelectChat(chat.id)}
+                    >
+                      <CardContent className="p-3">
+                        <div className="flex items-start">
+                          <div className="flex items-center justify-center mt-2.5">
+                            <img
+                              className="w-3.5 h-4"
+                              alt="Chat icon"
+                              src={chat.icon}
+                            />
+                          </div>
+                          <div className="ml-[26px]">
+                            <div className="text-foreground text-sm font-medium">
+                              {chat.title}
+                            </div>
+                            <div className="text-muted-foreground text-xs">{chat.time}</div>
+                          </div>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  ))}
+                </div>
+              </>
+            )}
           </div>
         </aside>
 
@@ -377,11 +584,11 @@ export const Frame = (): JSX.Element => {
           <div ref={chatContainerRef} className="flex-1 p-6 overflow-auto">
             {!activeChat ? (
               <div className="h-full flex flex-col items-center justify-center text-center">
-                <div className="bg-[#1a2235] rounded-full p-6 mb-6">
+                <div className="bg-secondary rounded-full p-6 mb-6">
                   <MessageSquareIcon className="h-12 w-12 text-cyan-500" />
                 </div>
-                <h2 className="text-2xl font-bold text-gray-100 mb-3">Welcome to EduRec</h2>
-                <p className="text-gray-400 max-w-md mb-8">
+                <h2 className="text-2xl font-bold text-foreground mb-3">Welcome to EduRec</h2>
+                <p className="text-muted-foreground max-w-md mb-8">
                   Your AI-powered educational assistant. Ask any academic question to get started.
                 </p>
                 <Button 
@@ -399,13 +606,18 @@ export const Frame = (): JSX.Element => {
                     : undefined;
                   
                   return (
-                    <ChatMessage
+                    <div 
+                      id={`message-${message.id}`} 
                       key={message.id}
-                      message={message}
-                      sources={assistantResponse?.sources}
-                      analysisMethodology={assistantResponse?.analysisMethodology}
-                      onRetry={message.role === 'assistant' ? () => handleRetry(message.id) : undefined}
-                    />
+                      className={`transition-colors duration-500 ${highlightedMessageId === message.id ? 'bg-cyan-500/10 rounded-lg' : ''}`}
+                    >
+                      <ChatMessage
+                        message={message}
+                        sources={assistantResponse?.sources}
+                        analysisMethodology={assistantResponse?.analysisMethodology}
+                        onRetry={message.role === 'assistant' ? () => handleRetry(message.id) : undefined}
+                      />
+                    </div>
                   );
                 })}
                 
@@ -418,8 +630,8 @@ export const Frame = (): JSX.Element => {
                 )}
                 
                 {showFeedbackPrompt && lastRetryMessageId && (
-                  <div className="bg-[#1f293780] border border-gray-700 rounded-lg p-4 mb-4 max-w-md mx-auto">
-                    <p className="text-gray-100 text-center mb-3">Do you like the new response better?</p>
+                  <div className="bg-card border border-border rounded-lg p-4 mb-4 max-w-md mx-auto">
+                    <p className="text-foreground text-center mb-3">Do you like the new response better?</p>
                     <div className="flex justify-center space-x-4">
                       <Button 
                         className="bg-green-600 hover:bg-green-700 text-white"
@@ -439,7 +651,7 @@ export const Frame = (): JSX.Element => {
                 
                 {messages.length === 0 && !isLoading && (
                   <div className="flex items-center justify-center h-full">
-                    <div className="text-gray-400 text-center">
+                    <div className="text-muted-foreground text-center">
                       <p className="mb-2">Type a question to get started</p>
                       <p className="text-sm">Example: "What is photosynthesis?"</p>
                     </div>
@@ -451,11 +663,11 @@ export const Frame = (): JSX.Element => {
 
           {/* Chat Input - Only show when there's an active chat */}
           {activeChat && (
-            <div className="border-t border-gray-800 p-4">
+            <div className="border-t border-border p-4">
               <div className="max-w-3xl mx-auto relative">
-                <div className="bg-[#1f293780] rounded-xl flex items-center">
+                <div className="bg-card rounded-xl flex items-center">
                   <Input
-                    className="bg-transparent border-0 h-14 px-4 text-gray-100 focus-visible:ring-0 focus-visible:ring-offset-0"
+                    className="bg-transparent border-0 h-14 px-4 text-foreground focus-visible:ring-0 focus-visible:ring-offset-0"
                     placeholder="Ask an educational question..."
                     value={inputValue}
                     onChange={handleInputChange}
