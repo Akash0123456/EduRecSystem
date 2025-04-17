@@ -33,14 +33,14 @@ export const Box = (): JSX.Element => {
   ];
 
   return (
-    <div className="flex h-screen bg-[#111827] text-white">
+    <div className="flex h-screen bg-background text-foreground">
       {/* Left side - Platform information */}
       <div className="w-1/2 p-8 flex flex-col">
         <div className="mb-12">
           <h1 className="text-2xl font-bold">
             EduRec<span className="text-cyan-500">.</span>
           </h1>
-          <p className="text-sm text-gray-400">
+          <p className="text-sm text-muted-foreground">
             Your AI-Powered Educational Assistant
           </p>
         </div>
@@ -49,7 +49,7 @@ export const Box = (): JSX.Element => {
           <h2 className="text-2xl font-bold mb-6">
             Educational AI For Enhanced Learning
           </h2>
-          <p className="text-sm text-gray-400 mb-12">
+          <p className="text-sm text-muted-foreground mb-12">
             Discover a new way of learning with EduRec, your dedicated
             educational AI assistant. Designed exclusively for academic
             purposes, we help students and educators achieve better learning
@@ -60,11 +60,11 @@ export const Box = (): JSX.Element => {
 
         <div className="grid grid-cols-2 gap-4 mt-auto">
           {features.map((feature, index) => (
-            <Card key={index} className="bg-[#1a2235] border-0">
+            <Card key={index} className="bg-card border-border">
               <CardContent className="p-4">
                 <div className="text-2xl mb-2">{feature.icon}</div>
                 <h3 className="text-sm font-semibold mb-1">{feature.title}</h3>
-                <p className="text-xs text-gray-400">{feature.description}</p>
+                <p className="text-xs text-muted-foreground">{feature.description}</p>
               </CardContent>
             </Card>
           ))}
@@ -72,7 +72,7 @@ export const Box = (): JSX.Element => {
       </div>
 
       {/* Right side - Login form */}
-      <div className="w-1/2 bg-[#0f172a] p-8 flex items-center justify-center">
+      <div className="w-1/2 bg-secondary p-8 flex items-center justify-center">
         <div className="w-full max-w-md">
           <Tabs defaultValue="signin" className="w-full">
             <TabsList className="grid grid-cols-2 mb-8 bg-transparent">
@@ -92,33 +92,33 @@ export const Box = (): JSX.Element => {
 
             <TabsContent value="signin" className="space-y-4">
               <div className="space-y-2">
-                <label htmlFor="email" className="text-sm text-gray-400">
+                <label htmlFor="email" className="text-sm text-muted-foreground">
                   Email
                 </label>
                 <Input
                   id="email"
                   type="email"
                   placeholder="Enter your email"
-                  className="bg-[#1a2235] border-0"
+                  className="bg-card border-border"
                 />
               </div>
 
               <div className="space-y-2">
-                <label htmlFor="password" className="text-sm text-gray-400">
+                <label htmlFor="password" className="text-sm text-muted-foreground">
                   Password
                 </label>
                 <Input
                   id="password"
                   type="password"
                   placeholder="Enter your password"
-                  className="bg-[#1a2235] border-0"
+                  className="bg-card border-border"
                 />
               </div>
 
               <div className="flex items-center justify-between">
                 <div className="flex items-center space-x-2">
                   <Checkbox id="remember" />
-                  <label htmlFor="remember" className="text-sm text-gray-400">
+                  <label htmlFor="remember" className="text-sm text-muted-foreground">
                     Remember me
                   </label>
                 </div>
@@ -135,8 +135,8 @@ export const Box = (): JSX.Element => {
               </Button>
 
               <div className="relative my-6">
-                <Separator className="bg-gray-700" />
-                <span className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 bg-[#0f172a] px-2 text-xs text-gray-400">
+                <Separator className="bg-border" />
+                <span className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 bg-secondary px-2 text-xs text-muted-foreground">
                   Or continue with
                 </span>
               </div>
@@ -144,7 +144,7 @@ export const Box = (): JSX.Element => {
               <div className="grid grid-cols-2 gap-4">
                 <Button
                   variant="outline"
-                  className="bg-[#1a2235] border-0 hover:bg-[#232b3d]"
+                  className="bg-card border-border hover:bg-secondary/80"
                 >
                   <svg className="w-5 h-5 mr-2" viewBox="0 0 24 24">
                     <path
@@ -156,7 +156,7 @@ export const Box = (): JSX.Element => {
                 </Button>
                 <Button
                   variant="outline"
-                  className="bg-[#1a2235] border-0 hover:bg-[#232b3d]"
+                  className="bg-card border-border hover:bg-secondary/80"
                 >
                   <svg className="w-5 h-5 mr-2" viewBox="0 0 24 24">
                     <path
@@ -168,7 +168,7 @@ export const Box = (): JSX.Element => {
                 </Button>
               </div>
 
-              <p className="text-xs text-center text-gray-400 mt-6">
+              <p className="text-xs text-center text-muted-foreground mt-6">
                 By signing in, you agree to our{" "}
                 <a href="#" className="text-cyan-500 hover:underline">
                   Terms of Service

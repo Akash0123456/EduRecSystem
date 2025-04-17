@@ -1,6 +1,6 @@
 {
   "hosting": {
-    "site": "edurec",
+    "site": "edurec-system",
     "public": "dist",
     "ignore": [
       "firebase.json",
