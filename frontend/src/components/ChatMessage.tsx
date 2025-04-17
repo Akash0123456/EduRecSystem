@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState, useRef, useEffect, useMemo } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from './ui/card';
 import { Separator } from './ui/separator';
 import { Button } from './ui/button';
@@ -12,12 +12,75 @@ interface ChatMessageProps {
   onRetry?: () => void;
 }
 
+// Interface for sentence-source mapping
+interface SentenceSourceMapping {
+  text: string;
+  sourceIndex: number;
+}
+
 export const ChatMessage: React.FC<ChatMessageProps> = ({
   message,
   sources,
   analysisMethodology,
   onRetry,
 }) => {
+  // State to track which sentence is being hovered (and its corresponding source)
+  const [hoveredSourceIndex, setHoveredSourceIndex] = useState<number | null>(null);
+  
+  // State to track which specific sentence is being hovered
+  const [hoveredSentenceId, setHoveredSentenceId] = useState<string | null>(null);
+  
+  // Ref for the sources section to scroll to when a sentence is hovered
+  const sourcesRef = useRef<HTMLDivElement>(null);
+  
+  // Use useMemo to create sentence-source mappings only when content or sources change
+  // This prevents unnecessary recalculations on every render
+  const sentenceSourceMappings = useMemo(() => {
+    const mappings: SentenceSourceMapping[] = [];
+    
+    if (!sources || sources.length === 0) {
+      return mappings;
+    }
+    
+    if (typeof message.content === 'string') {
+      // Simple sentence splitting (this is a basic implementation)
+      const sentences = message.content.match(/[^.!?]+[.!?]+/g) || [];
+      
+      // Create mappings (in a real app, this would come from the backend)
+      return sentences.map((sentence, index) => ({
+        text: sentence.trim(),
+        sourceIndex: index % sources.length // Distribute sentences across available sources
+      }));
+    } else if (message.content && typeof message.content !== 'string') {
+      // Handle structured content
+      message.content.sections.forEach(section => {
+        if (section.type === 'paragraph' && section.content) {
+          // Split paragraph into sentences
+          const sentences = section.content.match(/[^.!?]+[.!?]+/g) || [];
+          
+          // Create mappings for each sentence
+          sentences.forEach((sentence, idx) => {
+            mappings.push({
+              text: sentence.trim(),
+              sourceIndex: idx % sources.length // Distribute sentences across available sources
+            });
+          });
+        } else if ((section.type === 'numbered_list' || section.type === 'bullet_list') && section.items) {
+          // Create mappings for each list item
+          section.items.forEach((item, idx) => {
+            mappings.push({
+              text: item.trim(),
+              sourceIndex: idx % sources.length
+            });
+          });
+        }
+      });
+    }
+    
+    return mappings;
+  }, [message.content, sources]);
+  
+  // No auto-scrolling functionality
   const isUser = message.role === 'user';
 
   if (isUser) {
@@ -35,6 +98,61 @@ export const ChatMessage: React.FC<ChatMessageProps> = ({
       </div>
     );
   }
+  
+  // Custom renderer for content with source highlighting
+  // Memoize this function to prevent unnecessary re-renders
+  const renderContentWithSourceHighlighting = useMemo(() => {
+    return (content: string) => {
+      if (!sources || sources.length === 0 || sentenceSourceMappings.length === 0) {
+        return <HybridMathRenderer content={content} />;
+      }
+      
+      // Split content into sentences
+      const sentences = content.match(/[^.!?]+[.!?]+/g) || [content];
+      
+      return (
+        <div>
+          {sentences.map((sentence, index) => {
+            const mapping = sentenceSourceMappings.find(m => m.text === sentence.trim());
+            const sourceIndex = mapping?.sourceIndex ?? null;
+            
+            // Create a unique ID for this sentence
+            const sentenceId = `sentence-${index}-${sourceIndex}`;
+            
+            // Track which sentence is being hovered, but don't highlight based on source index
+            return (
+              <span 
+                key={index}
+                className="sentence transition-all duration-300 ease-in-out"
+                onMouseEnter={() => {
+                  if (sourceIndex !== null) {
+                    setHoveredSourceIndex(sourceIndex);
+                    setHoveredSentenceId(sentenceId);
+                  }
+                }}
+                onMouseLeave={() => {
+                  setHoveredSourceIndex(null);
+                  setHoveredSentenceId(null);
+                }}
+                style={{ 
+                  position: 'relative', 
+                  cursor: sourceIndex !== null ? 'pointer' : 'default',
+                  display: 'inline-block'
+                }}
+              >
+                <HybridMathRenderer content={sentence} />
+                {sourceIndex !== null && hoveredSentenceId === sentenceId && sources && (
+                  <div className="absolute bottom-full left-0 bg-gray-800 text-white text-xs rounded py-1 px-2 mb-1 z-10 whitespace-nowrap">
+                    Source: {sources[sourceIndex]?.title}
+                  </div>
+                )}
+              </span>
+            );
+          })}
+        </div>
+      );
+    };
+  }, [hoveredSourceIndex, sentenceSourceMappings, sources]);
 
   return (
     <Card className="bg-[#1f293780] border-gray-700 rounded-[2px_16px_16px_16px] mb-6 max-w-[768px]">
@@ -51,7 +169,7 @@ export const ChatMessage: React.FC<ChatMessageProps> = ({
             <div className="text-gray-100 text-base space-y-4">
               {typeof message.content === 'string' ? (
                 <div>
-                  <HybridMathRenderer content={message.content} />
+                  {renderContentWithSourceHighlighting(message.content)}
                 </div>
               ) : (
                 message.content.sections?.map((section, idx) => {
@@ -65,7 +183,7 @@ export const ChatMessage: React.FC<ChatMessageProps> = ({
                     case 'paragraph':
                       return (
                         <div key={idx} className="leading-6">
-                          <HybridMathRenderer content={section.content} />
+                          {renderContentWithSourceHighlighting(section.content)}
                         </div>
                       );
                     case 'numbered_list':
@@ -77,11 +195,41 @@ export const ChatMessage: React.FC<ChatMessageProps> = ({
                             </div>
                           )}
                           <ol className="list-decimal pl-5 space-y-1">
-                            {section.items?.map((item, itemIdx) => (
-                              <li key={itemIdx} className="pl-1">
-                                <HybridMathRenderer content={item} />
-                              </li>
-                            ))}
+                            {section.items?.map((item, itemIdx) => {
+                              const mapping = sentenceSourceMappings.find(m => m.text === item.trim());
+                              const sourceIndex = mapping?.sourceIndex ?? null;
+                              
+                              // Create a unique ID for this list item
+                              const itemId = `item-${idx}-${itemIdx}-${sourceIndex}`;
+                              
+                              return (
+                                <li 
+                                  key={itemIdx} 
+                                  className="pl-1 transition-all duration-300 ease-in-out"
+                                  onMouseEnter={() => {
+                                    if (sourceIndex !== null) {
+                                      setHoveredSourceIndex(sourceIndex);
+                                      setHoveredSentenceId(itemId);
+                                    }
+                                  }}
+                                  onMouseLeave={() => {
+                                    setHoveredSourceIndex(null);
+                                    setHoveredSentenceId(null);
+                                  }}
+                                  style={{ 
+                                    position: 'relative', 
+                                    cursor: sourceIndex !== null ? 'pointer' : 'default'
+                                  }}
+                                >
+                                  <HybridMathRenderer content={item} />
+                                  {sourceIndex !== null && hoveredSentenceId === itemId && sources && (
+                                    <div className="absolute bottom-full left-0 bg-gray-800 text-white text-xs rounded py-1 px-2 mb-1 z-10 whitespace-nowrap">
+                                      Source: {sources[sourceIndex]?.title}
+                                    </div>
+                                  )}
+                                </li>
+                              );
+                            })}
                           </ol>
                         </div>
                       );
@@ -94,11 +242,41 @@ export const ChatMessage: React.FC<ChatMessageProps> = ({
                             </div>
                           )}
                           <ul className="list-disc pl-5 space-y-1">
-                            {section.items?.map((item, itemIdx) => (
-                              <li key={itemIdx} className="pl-1">
-                                <HybridMathRenderer content={item} />
-                              </li>
-                            ))}
+                            {section.items?.map((item, itemIdx) => {
+                              const mapping = sentenceSourceMappings.find(m => m.text === item.trim());
+                              const sourceIndex = mapping?.sourceIndex ?? null;
+                              
+                              // Create a unique ID for this list item
+                              const itemId = `bullet-${idx}-${itemIdx}-${sourceIndex}`;
+                              
+                              return (
+                                <li 
+                                  key={itemIdx} 
+                                  className="pl-1 transition-all duration-300 ease-in-out"
+                                  onMouseEnter={() => {
+                                    if (sourceIndex !== null) {
+                                      setHoveredSourceIndex(sourceIndex);
+                                      setHoveredSentenceId(itemId);
+                                    }
+                                  }}
+                                  onMouseLeave={() => {
+                                    setHoveredSourceIndex(null);
+                                    setHoveredSentenceId(null);
+                                  }}
+                                  style={{ 
+                                    position: 'relative', 
+                                    cursor: sourceIndex !== null ? 'pointer' : 'default'
+                                  }}
+                                >
+                                  <HybridMathRenderer content={item} />
+                                  {sourceIndex !== null && hoveredSentenceId === itemId && sources && (
+                                    <div className="absolute bottom-full left-0 bg-gray-800 text-white text-xs rounded py-1 px-2 mb-1 z-10 whitespace-nowrap">
+                                      Source: {sources[sourceIndex]?.title}
+                                    </div>
+                                  )}
+                                </li>
+                              );
+                            })}
                           </ul>
                         </div>
                       );
@@ -119,24 +297,33 @@ export const ChatMessage: React.FC<ChatMessageProps> = ({
               <>
                 <Separator className="my-4 bg-gray-700" />
 
-                <div>
+                <div ref={sourcesRef}>
                   <div className="text-gray-400 text-sm mb-4">Sources:</div>
                   <div className="space-y-2">
-                    {sources.map((source, index) => (
-                      <div key={index} className="flex justify-between">
-                        <a 
-                          href={source.url} 
-                          target="_blank" 
-                          rel="noopener noreferrer" 
-                          className="text-cyan-400 text-sm font-bold hover:underline hover:text-cyan-300 transition-colors"
+                    {sources.map((source, index) => {
+                      // Calculate this only when needed
+                      const isHighlighted = hoveredSourceIndex === index;
+                      
+                      return (
+                        <div 
+                          id={`source-${index}`}
+                          key={index} 
+                          className={`flex justify-between ${isHighlighted ? 'bg-cyan-500/10 rounded px-2 py-1 -mx-2' : ''} transition-all duration-300 ease-in-out`}
                         >
-                          {source.title}
-                        </a>
-                        <div className="text-gray-400 text-xs">
-                          {source.url}
+                          <a 
+                            href={source.url} 
+                            target="_blank" 
+                            rel="noopener noreferrer" 
+                            className="text-cyan-400 text-sm font-bold hover:underline hover:text-cyan-300 transition-colors"
+                          >
+                            {source.title}
+                          </a>
+                          <div className="text-gray-400 text-xs">
+                            {source.url}
+                          </div>
                         </div>
-                      </div>
-                    ))}
+                      );
+                    })}
                   </div>
                 </div>
               </>
