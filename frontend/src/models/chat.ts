@@ -26,6 +26,15 @@ export interface AssistantResponse {
   analysisMethodology: string;
 }
 
+export interface RecentChat {
+  id: string;
+  title: string;
+  time: string;
+  active: boolean;
+  icon: string;
+  messages: Message[];
+}
+
 // Helper function to check if content is a string
 export function isStringContent(content: string | StructuredContent): content is string {
   return typeof content === 'string';
