@@ -149,6 +149,13 @@ export const Frame = (): JSX.Element => {
               ? (inputValue.length > 30 ? `${inputValue.substring(0, 30)}...` : inputValue)
               : chat.title;
             
+            // Update the chat title in Firestore if this is the first message
+            if (isFirstMessage) {
+              updateChatTitle(activeChat, initialTitle).catch(error => {
+                console.error("Error updating chat title:", error);
+              });
+            }
+            
             return {
               ...chat,
               title: initialTitle,
@@ -188,6 +195,7 @@ export const Frame = (): JSX.Element => {
       if (isFirstMessage) {
         try {
           const chatName = await generateChatName(newUserMessage.content);
+          // Update the chat title in Firestore with the generated name
           await updateChatTitle(activeChat, chatName);
           
           setRecentChats(prev => 
