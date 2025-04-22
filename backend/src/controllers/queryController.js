@@ -3,6 +3,30 @@ const googleConfig = require("../config/googleConfig");
 const { scrapeMultipleUrls } = require("../utils/scrapeMultipleUrls");
 const { getChatCompletion } = require("../utils/openaiApiService");
 
+// List of banned domains that should not be scraped
+const bannedDomains = [
+  'facebook.com', 'reddit.com', 'quora.com', 'pinterest.com', 'twitter.com',
+  'x.com', 'tiktok.com', 'linkedin.com', 'instagram.com', 'medium.com',
+  'stackexchange.com', 'stackoverflow.com', 'chegg.com', 'brainly.com',
+  'coursehero.com', 'youtube.com', 'wikihow.com', 'fandom.com', 'slideshare.net',
+  'amazon.com', 'ebay.com', 'tripadvisor.com', 'yelp.com', 'imdb.com'
+];
+
+/**
+ * Check if a URL belongs to a banned domain
+ * @param {string} url The URL to check
+ * @returns {boolean} True if the URL is from a banned domain
+ */
+function isBannedDomain(url) {
+  try {
+    const domain = new URL(url).hostname;
+    return bannedDomains.some(bannedDomain => domain.includes(bannedDomain));
+  } catch (err) {
+    console.warn(`Invalid URL format: ${url}`);
+    return true; // Consider invalid URLs as banned to be safe
+  }
+}
+
 /**
  * Parse the message to separate previous questions from the current question
  * @param {string} message The full message containing all questions
@@ -55,12 +79,15 @@ exports.getAnswerWithSources = async (req, res) => {
           key: googleConfig.GOOGLE_API_KEY,
           cx: googleConfig.GOOGLE_CSE_ID,
           q: firstUserMessage.content, // Use the full message for search
-          num: 5
+          num: 10 // Increased to account for potential filtering
         };
     
         const response = await googleApiClient.get("/", { params });
         const searchResults = response.data.items || [];
-        const links = searchResults.map(item => item.link);
+        
+        // Filter out banned domains from search results
+        const filteredResults = searchResults.filter(result => !isBannedDomain(result.link));
+        const links = filteredResults.map(item => item.link);
     
         // Step 2: Scrape up to 3 successful pages
         const scrapedResults = await scrapeMultipleUrls(links, 3, 4000);
@@ -94,6 +121,11 @@ exports.getAnswerWithSources = async (req, res) => {
           1. Provide a clear, concise answer to the question, structured in a way that's easy to read
           2. Include 2-4 specific, credible sources with titles and URLs
           3. Include an "Analysis Methodology" section that explains your approach to answering the question
+          
+          If the provided sources do not contain relevant or useful information for answering the question:
+          1. Provide your best answer based on your knowledge
+          2. At the end of your response, add a section with type "paragraph" and content: "Note: This answer was provided without using the scraped sources as they did not contain relevant information for this question."
+          3. In the "Analysis Methodology" section, mention that you relied on your general knowledge rather than the provided sources
           
           Format your response as a JSON object with the following structure:
           {
