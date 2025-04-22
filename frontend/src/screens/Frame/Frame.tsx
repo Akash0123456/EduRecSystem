@@ -15,7 +15,7 @@ import { Input } from "../../components/ui/input";
 import { ChatMessage } from "../../components/ChatMessage";
 import { Message, ChatSource, AssistantResponse } from "../../models/chat";
 import { generateId } from "../../utils/helpers";
-import { sendMessage, generateChatName } from "../../services/openaiService";
+import { sendMessage, generateChatName } from "../../services/queryService";
 import { createChat, addMessage, getUserChats, updateChatTitle } from "../../services/chatService";
 import { auth } from "../../firebase";
 import { onAuthStateChanged } from "firebase/auth";
