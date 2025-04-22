@@ -170,8 +170,11 @@ export const Frame = (): JSX.Element => {
       setInputValue("");
       setIsLoading(true);
       
-      // Call OpenAI API
-      const response = await sendMessage(newUserMessage.content);
+      // Call OpenAI API with conversation history
+      const response = await sendMessage(
+        newUserMessage.content,
+        currentChat.messages
+      );
       
       // Create assistant message
       const assistantMessage: Omit<Message, 'id' | 'timestamp'> = {
@@ -287,8 +290,11 @@ export const Frame = (): JSX.Element => {
     setShowFeedbackPrompt(false);
     
     try {
-      // Call OpenAI API with the same user message
-      const response = await sendMessage(userContent);
+      // Call OpenAI API with the same user message and conversation history
+      const response = await sendMessage(
+        userContent,
+        currentChat.messages.slice(0, messageIndex)
+      );
       
       // Create new assistant message
       const newAssistantMessage: Omit<Message, 'id' | 'timestamp'> = {
