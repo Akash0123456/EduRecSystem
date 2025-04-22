@@ -15,10 +15,7 @@ import { Input } from "../../components/ui/input";
 import { ChatMessage } from "../../components/ChatMessage";
 import { Message, ChatSource, AssistantResponse } from "../../models/chat";
 import { generateId } from "../../utils/helpers";
-import { sendMessage, generateChatName } from "../../services/queryService";
-import { createChat, addMessage, getUserChats, updateChatTitle } from "../../services/chatService";
-import { auth } from "../../firebase";
-import { onAuthStateChanged } from "firebase/auth";
+import { sendMessage, generateChatName } from "../../services/openaiService";
 
 // Define the type for recent chats
 interface RecentChat {
@@ -43,7 +40,6 @@ export const Frame = (): JSX.Element => {
   const [retryingMessageId, setRetryingMessageId] = useState<string | null>(null);
   const [showFeedbackPrompt, setShowFeedbackPrompt] = useState<boolean>(false);
   const [lastRetryMessageId, setLastRetryMessageId] = useState<string | null>(null);
-  const [isAuthenticated, setIsAuthenticated] = useState<boolean>(false);
   
   // Get current messages from active chat
   const currentChat = recentChats.find(chat => chat.id === activeChat);
@@ -51,31 +47,6 @@ export const Frame = (): JSX.Element => {
   
   // Ref for chat container to auto-scroll
   const chatContainerRef = useRef<HTMLDivElement>(null);
-  
-  // Handle authentication state changes
-  useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, (user) => {
-      setIsAuthenticated(!!user);
-      if (user) {
-        // Load chats when user is authenticated
-        const loadChats = async () => {
-          try {
-            const chats = await getUserChats();
-            setRecentChats(chats);
-          } catch (error) {
-            console.error("Error loading chats:", error);
-          }
-        };
-        loadChats();
-      } else {
-        // Clear chats when user is not authenticated
-        setRecentChats([]);
-        setActiveChat("");
-      }
-    });
-
-    return () => unsubscribe();
-  }, []);
   
   // Auto-scroll to bottom when messages change
   useEffect(() => {
@@ -85,28 +56,24 @@ export const Frame = (): JSX.Element => {
   }, [messages, assistantResponses]);
 
   // Handle starting a new chat
-  const handleStartNewChat = async () => {
-    try {
-      const newChatId = await createChat("New Chat");
-      
-      const newChat: RecentChat = {
-        id: newChatId,
-        title: "New Chat",
-        time: "Just now",
-        active: true,
-        icon: "https://c.animaapp.com/m8rnoiwsmZEcq2/img/frame-10.svg",
-        messages: [],
-      };
-      
-      setRecentChats(prev => {
-        const updated = prev.map(chat => ({...chat, active: false}));
-        return [newChat, ...updated];
-      });
-      
-      setActiveChat(newChatId);
-    } catch (error) {
-      console.error("Error creating new chat:", error);
-    }
+  const handleStartNewChat = () => {
+    const newChatId = generateId();
+    
+    const newChat: RecentChat = {
+      id: newChatId,
+      title: "New Chat",
+      time: "Just now",
+      active: true,
+      icon: "https://c.animaapp.com/m8rnoiwsmZEcq2/img/frame-10.svg",
+      messages: [],
+    };
+    
+    setRecentChats(prev => {
+      const updated = prev.map(chat => ({...chat, active: false}));
+      return [newChat, ...updated];
+    });
+    
+    setActiveChat(newChatId);
   };
   
   // Handle selecting a chat
@@ -124,90 +91,77 @@ export const Frame = (): JSX.Element => {
   const handleSendMessage = async () => {
     if (!inputValue.trim() || isLoading || !currentChat) return;
     
-    try {
       // Create new user message
-      const newUserMessage: Omit<Message, 'id' | 'timestamp'> = {
-        content: inputValue,
+      const newUserMessage: Message = {
+        id: generateId(),
+        content: inputValue, // User messages are always strings
         role: "user",
-      };
-      
-      // Add message to Firestore
-      const messageId = await addMessage(activeChat, newUserMessage);
-      
-      // Update local state
-      const userMessage: Message = {
-        ...newUserMessage,
-        id: messageId,
         timestamp: new Date(),
       };
-      
-      setRecentChats(prev => 
-        prev.map(chat => {
-          if (chat.id === activeChat) {
-            const isFirstMessage = chat.messages.length === 0;
-            const initialTitle = isFirstMessage 
-              ? (inputValue.length > 30 ? `${inputValue.substring(0, 30)}...` : inputValue)
-              : chat.title;
+    
+    // Update chat with new message
+    setRecentChats(prev => 
+      prev.map(chat => {
+        if (chat.id === activeChat) {
+          // For now, use a simple title - we'll update it after the API call if this is the first message
+          const isFirstMessage = chat.messages.length === 0;
+          const initialTitle = isFirstMessage 
+            ? (inputValue.length > 30 ? `${inputValue.substring(0, 30)}...` : inputValue)
+            : chat.title;
             
-            // Update the chat title in Firestore if this is the first message
-            if (isFirstMessage) {
-              updateChatTitle(activeChat, initialTitle).catch(error => {
-                console.error("Error updating chat title:", error);
-              });
-            }
-            
-            return {
-              ...chat,
-              title: initialTitle,
-              messages: [...chat.messages, userMessage],
-              time: "Just now"
-            };
-          }
-          return chat;
-        })
-      );
-      
-      setInputValue("");
-      setIsLoading(true);
-      
-      // Call OpenAI API with conversation history
-      const response = await sendMessage(
-        newUserMessage.content,
-        currentChat.messages
-      );
+          return {
+            ...chat,
+            title: initialTitle,
+            messages: [...chat.messages, newUserMessage],
+            time: "Just now"
+          };
+        }
+        return chat;
+      })
+    );
+    
+    setInputValue("");
+    setIsLoading(true);
+    
+    try {
+      // Call OpenAI API
+      const response = await sendMessage(newUserMessage.content);
       
       // Create assistant message
-      const assistantMessage: Omit<Message, 'id' | 'timestamp'> = {
-        content: response.answer,
+      const assistantMessage: Message = {
+        id: generateId(),
+        content: response.answer, // This is now a structured content object
         role: "assistant",
+        timestamp: new Date(),
       };
       
-      // Add assistant message to Firestore
-      const assistantMessageId = await addMessage(activeChat, assistantMessage);
-      
-      // Update local state
-      const fullAssistantMessage: Message = {
-        ...assistantMessage,
-        id: assistantMessageId,
-        timestamp: new Date(),
+      // Create assistant response
+      const assistantResponse: AssistantResponse = {
+        message: assistantMessage,
+        sources: response.sources,
+        analysisMethodology: response.analysisMethodology,
       };
       
       // Check if this is the first message to generate a chat name
-      const isFirstMessage = currentChat.messages.length === 1;
+      const isFirstMessage = currentChat.messages.length === 1; // Only the user message
       
       if (isFirstMessage) {
-        try {
-          const chatName = await generateChatName(newUserMessage.content);
-          // Update the chat title in Firestore with the generated name
-          await updateChatTitle(activeChat, chatName);
+          // Generate a better chat name using OpenAI (user messages are always strings)
+          try {
+            // TypeScript doesn't know that user messages are always strings
+            const userMessageContent = typeof newUserMessage.content === 'string' 
+              ? newUserMessage.content 
+              : 'New Chat';
+            const chatName = await generateChatName(userMessageContent);
           
+          // Update chat with the new name and the assistant message
           setRecentChats(prev => 
             prev.map(chat => {
               if (chat.id === activeChat) {
                 return {
                   ...chat,
                   title: chatName,
-                  messages: [...chat.messages, fullAssistantMessage]
+                  messages: [...chat.messages, assistantMessage]
                 };
               }
               return chat;
@@ -215,12 +169,13 @@ export const Frame = (): JSX.Element => {
           );
         } catch (error) {
           console.error("Error generating chat name:", error);
+          // Fall back to updating without changing the name
           setRecentChats(prev => 
             prev.map(chat => {
               if (chat.id === activeChat) {
                 return {
                   ...chat,
-                  messages: [...chat.messages, fullAssistantMessage]
+                  messages: [...chat.messages, assistantMessage]
                 };
               }
               return chat;
@@ -228,12 +183,13 @@ export const Frame = (): JSX.Element => {
           );
         }
       } else {
+        // Just update with the new message
         setRecentChats(prev => 
           prev.map(chat => {
             if (chat.id === activeChat) {
               return {
                 ...chat,
-                messages: [...chat.messages, fullAssistantMessage]
+                messages: [...chat.messages, assistantMessage]
               };
             }
             return chat;
@@ -243,15 +199,12 @@ export const Frame = (): JSX.Element => {
       
       setAssistantResponses(prev => ({
         ...prev,
-        [assistantMessageId]: {
-          message: fullAssistantMessage,
-          sources: response.sources,
-          analysisMethodology: response.analysisMethodology,
-        },
+        [assistantMessage.id]: assistantResponse,
       }));
       
     } catch (error) {
       console.error("Error sending message:", error);
+      // Handle error - could add an error message to the chat
     } finally {
       setIsLoading(false);
     }
@@ -290,31 +243,20 @@ export const Frame = (): JSX.Element => {
     setShowFeedbackPrompt(false);
     
     try {
-      // Call OpenAI API with the same user message and conversation history
-      const response = await sendMessage(
-        userContent,
-        currentChat.messages.slice(0, messageIndex)
-      );
+      // Call OpenAI API with the same user message
+      const response = await sendMessage(userContent);
       
       // Create new assistant message
-      const newAssistantMessage: Omit<Message, 'id' | 'timestamp'> = {
+      const newAssistantMessage: Message = {
+        id: generateId(),
         content: response.answer,
         role: "assistant",
-      };
-      
-      // Add new assistant message to Firestore
-      const newAssistantMessageId = await addMessage(activeChat, newAssistantMessage);
-      
-      // Update local state
-      const fullAssistantMessage: Message = {
-        ...newAssistantMessage,
-        id: newAssistantMessageId,
         timestamp: new Date(),
       };
       
       // Create assistant response
       const assistantResponse: AssistantResponse = {
-        message: fullAssistantMessage,
+        message: newAssistantMessage,
         sources: response.sources,
         analysisMethodology: response.analysisMethodology,
       };
@@ -324,7 +266,7 @@ export const Frame = (): JSX.Element => {
         prev.map(chat => {
           if (chat.id === activeChat) {
             const newMessages = [...chat.messages];
-            newMessages[messageIndex] = fullAssistantMessage;
+            newMessages[messageIndex] = newAssistantMessage;
             return {
               ...chat,
               messages: newMessages
@@ -337,11 +279,11 @@ export const Frame = (): JSX.Element => {
       // Update assistant responses
       setAssistantResponses(prev => ({
         ...prev,
-        [newAssistantMessageId]: assistantResponse,
+        [newAssistantMessage.id]: assistantResponse,
       }));
       
       // Set last retry message ID for feedback prompt
-      setLastRetryMessageId(newAssistantMessageId);
+      setLastRetryMessageId(newAssistantMessage.id);
       setShowFeedbackPrompt(true);
       
     } catch (error) {
