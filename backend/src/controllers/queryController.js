@@ -3,6 +3,27 @@ const googleConfig = require("../config/googleConfig");
 const { scrapeMultipleUrls } = require("../utils/scrapeMultipleUrls");
 const { getChatCompletion } = require("../utils/openaiApiService");
 
+/**
+ * Parse the message to separate previous questions from the current question
+ * @param {string} message The full message containing all questions
+ * @returns {Object} Object containing previous questions and current question
+ */
+function parseMessage(message) {
+  // Split the message by ' and ' to get individual questions
+  const questions = message.split(' and ');
+  
+  // The last question is the current question
+  const currentQuestion = questions.pop();
+  
+  // All other questions are previous questions
+  const previousQuestions = questions;
+  
+  return {
+    previousQuestions,
+    currentQuestion
+  };
+}
+
 exports.getAnswerWithSources = async (req, res) => {
     const { messages } = req.body;
 
@@ -21,11 +42,19 @@ exports.getAnswerWithSources = async (req, res) => {
     }
     
     try {
-        // Step 1: Search Google
+        // Parse the message to separate previous questions from current question
+        const { previousQuestions, currentQuestion } = parseMessage(firstUserMessage.content);
+        
+        // Format the message for the AI
+        const formattedMessage = previousQuestions.length > 0
+          ? `Previously asked questions: ${previousQuestions.join(' and ')} Current question: ${currentQuestion}`
+          : `Previously asked questions: None Current question: ${currentQuestion}`;
+        
+        // Step 1: Search Google using the full message for better context
         const params = {
           key: googleConfig.GOOGLE_API_KEY,
           cx: googleConfig.GOOGLE_CSE_ID,
-          q: firstUserMessage.content,
+          q: firstUserMessage.content, // Use the full message for search
           num: 5
         };
     
@@ -45,11 +74,19 @@ exports.getAnswerWithSources = async (req, res) => {
         // Step 4: Build final messages array with system message
         const systemMessage = {
           role: "system",
-          content: `You are EduRec, an educational AI assistant designed exclusively for academic purposes. 
+          content: `You are EduRec, an educational AI assistant designed exclusively for academic purposes.
+
+          The queries prompted by the user will be in the following format:
+          Previously asked questions: [previous questions] Current question: [current question]
+
+          All other queries are provided to give you context about the user's question.
+          Answer ONLY the current question based on the context provided.
+          Do not answer any of the previous questions.
+
           Your responses must be:
           
           1. Strictly educational and factual
-          2. Based on credible academic sources
+          2. Based on the content provided
           3. Neutral and objective
           4. Appropriate for educational settings
           
@@ -129,7 +166,10 @@ exports.getAnswerWithSources = async (req, res) => {
         const finalMessages = [
           systemMessage,
           ...scrapedMessages,
-          ...messages // all user messages
+          {
+            role: "user",
+            content: formattedMessage
+          }
         ];
         
         // Step 5: Send to OpenAI
