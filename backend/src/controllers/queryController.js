@@ -2,6 +2,7 @@ const googleApiClient = require("../utils/googleApiClient");
 const googleConfig = require("../config/googleConfig");
 const { scrapeMultipleUrls } = require("../utils/scrapeMultipleUrls");
 const { getChatCompletion } = require("../utils/openaiApiService");
+const { generateSearchQuery } = require("../utils/searchQueryGenerator");
 
 // List of banned domains that should not be scraped
 const bannedDomains = [
@@ -69,16 +70,19 @@ exports.getAnswerWithSources = async (req, res) => {
         // Parse the message to separate previous questions from current question
         const { previousQuestions, currentQuestion } = parseMessage(firstUserMessage.content);
         
+        // Generate an effective search query using ChatGPT
+        const searchQuery = await generateSearchQuery(previousQuestions, currentQuestion);
+        console.log("searchQuery", searchQuery);
         // Format the message for the AI
         const formattedMessage = previousQuestions.length > 0
           ? `Previously asked questions: ${previousQuestions.join(' and ')} Current question: ${currentQuestion}`
           : `Previously asked questions: None Current question: ${currentQuestion}`;
         
-        // Step 1: Search Google using the full message for better context
+        // Step 1: Search Google using the generated search query
         const params = {
           key: googleConfig.GOOGLE_API_KEY,
           cx: googleConfig.GOOGLE_CSE_ID,
-          q: firstUserMessage.content, // Use the full message for search
+          q: searchQuery, // Use the generated search query
           num: 10 // Increased to account for potential filtering
         };
     
@@ -103,13 +107,6 @@ exports.getAnswerWithSources = async (req, res) => {
           role: "system",
           content: `You are EduRec, an educational AI assistant designed exclusively for academic purposes.
 
-          The queries prompted by the user will be in the following format:
-          Previously asked questions: [previous questions] Current question: [current question]
-
-          All other queries are provided to give you context about the user's question.
-          Answer ONLY the current question based on the context provided.
-          Do not answer any of the previous questions.
-
           Your responses must be:
           
           1. Strictly educational and factual
@@ -122,7 +119,7 @@ exports.getAnswerWithSources = async (req, res) => {
           2. Include 2-4 specific, credible sources with titles and URLs
           3. Include an "Analysis Methodology" section that explains your approach to answering the question
           
-          If the provided sources do not contain relevant or useful information for answering the question:
+          If no scraped content is provided or if the provided sources do not contain relevant information:
           1. Provide your best answer based on your knowledge
           2. At the end of your response, add a section with type "paragraph" and content: "Note: This answer was provided without using the scraped sources as they did not contain relevant information for this question."
           3. In the "Analysis Methodology" section, mention that you relied on your general knowledge rather than the provided sources
@@ -200,7 +197,7 @@ exports.getAnswerWithSources = async (req, res) => {
           ...scrapedMessages,
           {
             role: "user",
-            content: formattedMessage
+            content: currentQuestion
           }
         ];
         
