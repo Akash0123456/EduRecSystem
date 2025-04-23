@@ -1,0 +1,33 @@
+steps:
+  # Build the application
+  - name: 'gcr.io/cloud-builders/npm'
+    args: ['install']
+    dir: 'backend'
+
+  # Build the container image
+  - name: 'gcr.io/cloud-builders/docker'
+    args: ['build', '-t', 'gcr.io/$PROJECT_ID/backend:$COMMIT_SHA', './backend']
+
+  # Push the container image to Container Registry
+  - name: 'gcr.io/cloud-builders/docker'
+    args: ['push', 'gcr.io/$PROJECT_ID/backend:$COMMIT_SHA']
+
+  # Deploy container image to Cloud Run
+  - name: 'gcr.io/google.com/cloudsdktool/cloud-sdk'
+    entrypoint: gcloud
+    args:
+      - 'run'
+      - 'deploy'
+      - 'backend'
+      - '--image'
+      - 'gcr.io/$PROJECT_ID/backend:$COMMIT_SHA'
+      - '--region'
+      - 'us-central1'
+      - '--platform'
+      - 'managed'
+      - '--allow-unauthenticated'
+      - '--set-env-vars'
+      - 'GOOGLE_API_KEY=${_GOOGLE_API_KEY},GOOGLE_CSE_ID=${_GOOGLE_CSE_ID},OPENAI_API_KEY=${_OPENAI_API_KEY}'
+
+images:
+  - 'gcr.io/$PROJECT_ID/backend:$COMMIT_SHA' 
