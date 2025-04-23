@@ -40,7 +40,7 @@ function parseMessage(message) {
   };
 }
 
-exports.getAnswerWithSources = async (req, res) => {
+async function getAnswerWithSources(req, res) {
     const { messages } = req.body;
 
     if (!messages || !Array.isArray(messages) || messages.length === 0) {
@@ -222,3 +222,8 @@ exports.getAnswerWithSources = async (req, res) => {
         res.status(500).json({ error: "Something went wrong during search or scraping." });
       }
 }
+
+module.exports = {
+  getAnswerWithSources,
+  isBannedDomain
+};
