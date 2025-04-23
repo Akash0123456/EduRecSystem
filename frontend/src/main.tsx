@@ -6,6 +6,7 @@ import { Frame } from "./screens/Frame";
 import { Home } from "./screens/Home";
 import { About } from "./screens/About";
 import { Settings } from "./screens/Settings";
+import { ProtectedRoute } from "./components/ProtectedRoute";
 import "./index.css";
 import 'katex/dist/katex.min.css';
 
@@ -13,11 +14,31 @@ ReactDOM.createRoot(document.getElementById("root")!).render(
   <React.StrictMode>
     <BrowserRouter>
       <Routes>
-        <Route path="/" element={<Box />} />
-        <Route path="/dashboard" element={<Frame />} />
-        <Route path="/home" element={<Home />} />
-        <Route path="/about" element={<About />} />
-        <Route path="/settings" element={<Settings />} />
+        <Route path="/" element={
+          <ProtectedRoute requireAuth={false}>
+            <Box />
+          </ProtectedRoute>
+        } />
+        <Route path="/dashboard" element={
+          <ProtectedRoute>
+            <Frame />
+          </ProtectedRoute>
+        } />
+        <Route path="/home" element={
+          <ProtectedRoute>
+            <Home />
+          </ProtectedRoute>
+        } />
+        <Route path="/about" element={
+          <ProtectedRoute>
+            <About />
+          </ProtectedRoute>
+        } />
+        <Route path="/settings" element={
+          <ProtectedRoute>
+            <Settings />
+          </ProtectedRoute>
+        } />
       </Routes>
     </BrowserRouter>
   </React.StrictMode>
