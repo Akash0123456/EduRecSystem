@@ -5,6 +5,7 @@ import { Box } from "./screens/Box";
 import { Frame } from "./screens/Frame";
 import { About } from "./screens/About";
 import { Settings } from "./screens/Settings";
+import { ForgotPassword } from "./screens/ForgotPassword/ForgotPassword";
 import { ProtectedRoute } from "./components/ProtectedRoute";
 import "./index.css";
 import 'katex/dist/katex.min.css';
@@ -31,6 +32,11 @@ ReactDOM.createRoot(document.getElementById("root")!).render(
         <Route path="/settings" element={
           <ProtectedRoute>
             <Settings />
+          </ProtectedRoute>
+        } />
+        <Route path="/forgot-password" element={
+          <ProtectedRoute requireAuth={false}>
+            <ForgotPassword />
           </ProtectedRoute>
         } />
       </Routes>

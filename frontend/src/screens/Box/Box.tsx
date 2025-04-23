@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, Link } from "react-router-dom";
 import { Button } from "../../components/ui/button";
 import { Card, CardContent } from "../../components/ui/card";
 import { Checkbox } from "../../components/ui/checkbox";
@@ -13,6 +13,7 @@ import {
 } from "../../components/ui/tabs";
 import { createUserWithEmailAndPassword, GoogleAuthProvider, GithubAuthProvider, signInWithPopup, signInWithEmailAndPassword } from "firebase/auth";
 import { auth } from "../../firebase";
+import { Loader2Icon } from "lucide-react";
 
 export const Box = (): JSX.Element => {
   const navigate = useNavigate();
@@ -21,7 +22,6 @@ export const Box = (): JSX.Element => {
     email: "",
     password: "",
     confirmPassword: "",
-    agreeTerms: false,
   });
   
   const [errors, setErrors] = useState({
@@ -29,7 +29,6 @@ export const Box = (): JSX.Element => {
     email: "",
     password: "",
     confirmPassword: "",
-    agreeTerms: "",
   });
 
   const [signInData, setSignInData] = useState({
@@ -44,6 +43,7 @@ export const Box = (): JSX.Element => {
   });
 
   const [isSigningIn, setIsSigningIn] = useState(false);
+  const [isSigningUp, setIsSigningUp] = useState(false);
 
   const handleSignInInputChange = (e) => {
     const { id, value } = e.target;
@@ -58,11 +58,6 @@ export const Box = (): JSX.Element => {
     setFormData({ ...formData, [id]: value });
     // Clear error when user starts typing
     setErrors({ ...errors, [id]: "" });
-  };
-
-  const handleCheckboxChange = (checked) => {
-    setFormData({ ...formData, agreeTerms: checked });
-    setErrors({ ...errors, agreeTerms: "" });
   };
 
   const handleSignIn = async () => {  
@@ -111,7 +106,8 @@ export const Box = (): JSX.Element => {
   }
   };
 
-  const handleSignUp = async () => {
+  const handleSignUp = async (e: React.FormEvent) => {
+    e.preventDefault();
     // Basic validation
     const newErrors = {};
     
@@ -135,18 +131,15 @@ export const Box = (): JSX.Element => {
       newErrors.confirmPassword = "Passwords do not match";
     }
     
-    if (!formData.agreeTerms) {
-      newErrors.agreeTerms = "You must agree to the terms";
-    }
-    
     if (Object.keys(newErrors).length > 0) {
       setErrors({ ...errors, ...newErrors });
       return;
     }
     
+    setIsSigningUp(true);
     try {
       await createUserWithEmailAndPassword(auth, formData.email, formData.password);
-      navigate("/dashboard");
+      navigate("/frame");
     } catch (error: any) {
       console.error("Firebase Email and Password Sign-Up Error: ", error.message);
       if (error.code === "auth/email-already-in-use") {
@@ -154,8 +147,9 @@ export const Box = (): JSX.Element => {
       } else {
         setErrors((prev) => ({ ...prev, email: "Failed to sign up" }));
       }
+    } finally {
+      setIsSigningUp(false);
     }
-    
   };
 
   const handleGoogleSignUp = async () => {
@@ -290,10 +284,13 @@ export const Box = (): JSX.Element => {
                   )}
                 </div>
 
-                <div className="flex items-center justify-between">
-                  <a href="#" className="text-sm text-cyan-500 hover:underline">
+                <div className="text-sm">
+                  <Link
+                    to="/forgot-password"
+                    className="font-medium text-cyan-500 hover:text-cyan-400"
+                  >
                     Forgot Password?
-                  </a>
+                  </Link>
                 </div>
 
                 <Button 
@@ -346,83 +343,90 @@ export const Box = (): JSX.Element => {
               </TabsContent>
 
               <TabsContent value="signup" className="space-y-3 mt-6">
-                <div className="grid grid-cols-1 gap-3">
-                  <div>
-                    <label htmlFor="fullName" className="text-sm text-gray-400">
-                      Full Name
-                    </label>
-                    <Input
-                      id="fullName"
-                      type="text"
-                      placeholder="Enter your full name"
-                      className="bg-[#1a2235] border-0 mt-1"
-                      value={formData.fullName}
-                      onChange={handleInputChange}
-                    />
-                    {errors.fullName && (
-                      <p className="text-xs text-red-500 mt-1">{errors.fullName}</p>
-                    )}
+                <form onSubmit={handleSignUp} className="space-y-3">
+                  <div className="grid grid-cols-1 gap-3">
+                    <div>
+                      <label htmlFor="fullName" className="text-sm text-gray-400">
+                        Full Name
+                      </label>
+                      <Input
+                        id="fullName"
+                        type="text"
+                        placeholder="Enter your full name"
+                        className="bg-[#1a2235] border-0 mt-1"
+                        value={formData.fullName}
+                        onChange={handleInputChange}
+                      />
+                      {errors.fullName && (
+                        <p className="text-xs text-red-500 mt-1">{errors.fullName}</p>
+                      )}
+                    </div>
+
+                    <div>
+                      <label htmlFor="email" className="text-sm text-gray-400">
+                        Email
+                      </label>
+                      <Input
+                        id="email"
+                        type="email"
+                        placeholder="Enter your email"
+                        className="bg-[#1a2235] border-0 mt-1"
+                        value={formData.email}
+                        onChange={handleInputChange}
+                      />
+                      {errors.email && (
+                        <p className="text-xs text-red-500 mt-1">{errors.email}</p>
+                      )}
+                    </div>
+
+                    <div>
+                      <label htmlFor="password" className="text-sm text-gray-400">
+                        Password
+                      </label>
+                      <Input
+                        id="password"
+                        type="password"
+                        placeholder="Create a password"
+                        className="bg-[#1a2235] border-0 mt-1"
+                        value={formData.password}
+                        onChange={handleInputChange}
+                      />
+                      {errors.password && (
+                        <p className="text-xs text-red-500 mt-1">{errors.password}</p>
+                      )}
+                      <p className="text-xs text-gray-500">Must be at least 8 characters</p>
+                    </div>
+
+                    <div>
+                      <label htmlFor="confirmPassword" className="text-sm text-gray-400">
+                        Confirm Password
+                      </label>
+                      <Input
+                        id="confirmPassword"
+                        type="password"
+                        placeholder="Confirm your password"
+                        className="bg-[#1a2235] border-0 mt-1"
+                        value={formData.confirmPassword}
+                        onChange={handleInputChange}
+                      />
+                      {errors.confirmPassword && (
+                        <p className="text-xs text-red-500 mt-1">{errors.confirmPassword}</p>
+                      )}
+                    </div>
                   </div>
 
-                  <div>
-                    <label htmlFor="email" className="text-sm text-gray-400">
-                      Email
-                    </label>
-                    <Input
-                      id="email"
-                      type="email"
-                      placeholder="Enter your email"
-                      className="bg-[#1a2235] border-0 mt-1"
-                      value={formData.email}
-                      onChange={handleInputChange}
-                    />
-                    {errors.email && (
-                      <p className="text-xs text-red-500 mt-1">{errors.email}</p>
+                  <Button 
+                    type="submit"
+                    className="w-full bg-cyan-500 hover:bg-cyan-600"
+                    disabled={isSigningUp}
+                  >
+                    {isSigningUp ? (
+                      <Loader2Icon className="h-4 w-4 animate-spin" />
+                    ) : (
+                      "Create Account"
                     )}
-                  </div>
-
-                  <div>
-                    <label htmlFor="password" className="text-sm text-gray-400">
-                      Password
-                    </label>
-                    <Input
-                      id="password"
-                      type="password"
-                      placeholder="Create a password"
-                      className="bg-[#1a2235] border-0 mt-1"
-                      value={formData.password}
-                      onChange={handleInputChange}
-                    />
-                    {errors.password && (
-                      <p className="text-xs text-red-500 mt-1">{errors.password}</p>
-                    )}
-                    <p className="text-xs text-gray-500">Must be at least 8 characters</p>
-                  </div>
-
-                  <div>
-                    <label htmlFor="confirmPassword" className="text-sm text-gray-400">
-                      Confirm Password
-                    </label>
-                    <Input
-                      id="confirmPassword"
-                      type="password"
-                      placeholder="Confirm your password"
-                      className="bg-[#1a2235] border-0 mt-1"
-                      value={formData.confirmPassword}
-                      onChange={handleInputChange}
-                    />
-                    {errors.confirmPassword && (
-                      <p className="text-xs text-red-500 mt-1">{errors.confirmPassword}</p>
-                    )}
-                  </div>
-                </div>
-
-                <Button 
-                  className="w-full bg-cyan-500 hover:bg-cyan-600"
-                  onClick={handleSignUp}
-                >
-                  Create Account
-                </Button>
+                  </Button>
+                </form>
 
                 <div className="relative my-3">
                   <Separator className="bg-gray-700" />
