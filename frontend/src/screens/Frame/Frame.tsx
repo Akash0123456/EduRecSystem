@@ -595,7 +595,7 @@ export const Frame = (): JSX.Element => {
                             onClick={(e) => handleDeleteChat(chat.id, e)}
                             title="Delete chat"
                           >
-                            <Trash2Icon className="h-4 w-4" />
+                            <Trash2Icon className="h-4 w-4 text-gray-100" />
                           </Button>
                         </div>
                       </CardContent>
