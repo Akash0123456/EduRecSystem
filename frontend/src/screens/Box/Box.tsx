@@ -291,14 +291,6 @@ export const Box = (): JSX.Element => {
                 </div>
 
                 <div className="flex items-center justify-between">
-                  <div className="flex items-center space-x-2">
-                    <Checkbox 
-                    id="remember"
-                    className="border-white text-gray-400 data-[state=checked]:bg-white data-[state=checked]:text-black"/>
-                    <label htmlFor="remember" className="text-sm text-gray-400">
-                      Remember me
-                    </label>
-                  </div>
                   <a href="#" className="text-sm text-cyan-500 hover:underline">
                     Forgot Password?
                   </a>
@@ -351,17 +343,6 @@ export const Box = (): JSX.Element => {
                     GitHub
                   </Button>
                 </div>
-
-                <p className="text-xs text-center text-gray-400 mt-4">
-                  By signing in, you agree to our{" "}
-                  <a href="#" className="text-cyan-500 hover:underline">
-                    Terms
-                  </a>{" "}
-                  and{" "}
-                  <a href="#" className="text-cyan-500 hover:underline">
-                    Privacy Policy
-                  </a>
-                </p>
               </TabsContent>
 
               <TabsContent value="signup" className="space-y-3 mt-6">
@@ -435,24 +416,6 @@ export const Box = (): JSX.Element => {
                     )}
                   </div>
                 </div>
-
-                <div className="flex items-start space-x-2">
-                  <Checkbox 
-                    id="agreeTerms" 
-                    checked={formData.agreeTerms}
-                    onCheckedChange={handleCheckboxChange}
-                    className="mt-1"
-                  />
-                  <label htmlFor="agreeTerms" className="text-xs text-gray-400">
-                    I agree to the{" "}
-                    <a href="#" className="text-cyan-500 hover:underline">Terms</a>{" "}
-                    and{" "}
-                    <a href="#" className="text-cyan-500 hover:underline">Privacy Policy</a>
-                  </label>
-                </div>
-                {errors.agreeTerms && (
-                  <p className="text-xs text-red-500 mt-1">{errors.agreeTerms}</p>
-                )}
 
                 <Button 
                   className="w-full bg-cyan-500 hover:bg-cyan-600"
