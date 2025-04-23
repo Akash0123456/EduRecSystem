@@ -1,4 +1,5 @@
 import OpenAI from 'openai';
+import { Settings } from '../contexts/SettingsContext';
 
 // Initialize the OpenAI client if API key is available
 // Note: You'll need to set the VITE_OPENAI_API_KEY environment variable
@@ -177,9 +178,10 @@ const mockResponses: Record<string, ChatResponse> = {
 /**
  * Send a message to the OpenAI API and get a response formatted for educational purposes
  * @param message The user's message
+ * @param settings User settings for customizing the response
  * @returns A formatted response with answer, sources, and analysis methodology
  */
-export async function sendMessage(message: string): Promise<ChatResponse> {
+export async function sendMessage(message: string, settings?: Settings): Promise<ChatResponse> {
   // If no valid API key, return mock response
   if (!hasValidApiKey || !openai) {
     console.log("Using mock response as no valid API key was provided");
@@ -195,6 +197,23 @@ export async function sendMessage(message: string): Promise<ChatResponse> {
   }
   
   try {
+    // Apply user settings to customize the response
+    const responseLength = settings?.responseLength || 'balanced';
+    const citationStyle = settings?.citationStyle || 'MLA';
+    
+    // Customize the system prompt based on settings
+    let detailLevel = '';
+    switch (responseLength) {
+      case 'concise':
+        detailLevel = 'Keep your responses brief and focused on key points. Prioritize clarity and conciseness over comprehensive detail.';
+        break;
+      case 'detailed':
+        detailLevel = 'Provide comprehensive, in-depth explanations with thorough coverage of the topic. Include nuanced details and explore related concepts when relevant.';
+        break;
+      default: // balanced
+        detailLevel = 'Provide a balanced level of detail that covers the main points thoroughly without being overly verbose.';
+    }
+    
     const completion = await openai.chat.completions.create({
       model: "gpt-4o",
       messages: [
@@ -208,8 +227,12 @@ export async function sendMessage(message: string): Promise<ChatResponse> {
           3. Neutral and objective
           4. Appropriate for educational settings
           
+          Response style preferences:
+          - Detail level: ${detailLevel}
+          - Citation style: Use ${citationStyle} citation format when referencing sources
+          
           For each response, you must:
-          1. Provide a clear, concise answer to the question, structured in a way that's easy to read
+          1. Provide a clear answer to the question, structured in a way that's easy to read, with the detail level specified above
           2. Include 2-4 specific, credible sources with titles and URLs
           3. Include an "Analysis Methodology" section that explains your approach to answering the question
           

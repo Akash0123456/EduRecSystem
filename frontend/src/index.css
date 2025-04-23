@@ -2,6 +2,52 @@
 @tailwind components;
 @tailwind utilities;
 
+/* Text size accessibility settings */
+.text-size-small {
+  font-size: 0.875rem; /* 14px */
+}
+
+.text-size-medium {
+  font-size: 1rem; /* 16px - default */
+}
+
+.text-size-large {
+  font-size: 1.125rem; /* 18px */
+}
+
+/* Apply text sizes to specific elements */
+.text-size-small .text-base {
+  font-size: 0.875rem;
+}
+
+.text-size-large .text-base {
+  font-size: 1.125rem;
+}
+
+.text-size-small h1 {
+  font-size: 1.5rem;
+}
+
+.text-size-large h1 {
+  font-size: 2.25rem;
+}
+
+.text-size-small .text-sm {
+  font-size: 0.75rem;
+}
+
+.text-size-large .text-sm {
+  font-size: 1rem;
+}
+
+.text-size-small .text-xs {
+  font-size: 0.625rem;
+}
+
+.text-size-large .text-xs {
+  font-size: 0.875rem;
+}
+
 /* Source highlighting styles */
 .source-sentence {
   position: relative;
