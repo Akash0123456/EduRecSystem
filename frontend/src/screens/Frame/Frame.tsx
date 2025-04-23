@@ -46,6 +46,13 @@ export const Frame = (): JSX.Element => {
   const [showFeedbackPrompt, setShowFeedbackPrompt] = useState<boolean>(false);
   const [lastRetryMessageId, setLastRetryMessageId] = useState<string | null>(null);
   const [isAuthenticated, setIsAuthenticated] = useState<boolean>(false);
+  const [userData, setUserData] = useState<{
+    displayName: string | null;
+    email: string | null;
+  }>({
+    displayName: null,
+    email: null
+  });
   
   // Get current messages from active chat
   const currentChat = recentChats.find(chat => chat.id === activeChat);
@@ -59,6 +66,11 @@ export const Frame = (): JSX.Element => {
     const unsubscribe = onAuthStateChanged(auth, (user) => {
       setIsAuthenticated(!!user);
       if (user) {
+        // Set user data
+        setUserData({
+          displayName: user.displayName,
+          email: user.email
+        });
         // Load chats when user is authenticated
         const loadChats = async () => {
           try {
@@ -70,7 +82,11 @@ export const Frame = (): JSX.Element => {
         };
         loadChats();
       } else {
-        // Clear chats when user is not authenticated
+        // Clear user data and chats when user is not authenticated
+        setUserData({
+          displayName: null,
+          email: null
+        });
         setRecentChats([]);
         setActiveChat("");
       }
@@ -382,20 +398,8 @@ export const Frame = (): JSX.Element => {
           {/* User Profile */}
           <div className="p-6">
             <div className="flex items-center">
-              <div className="relative">
-                <Avatar className="h-12 w-12 bg-gray-700">
-                  <AvatarFallback className="text-gray-300">TU</AvatarFallback>
-                </Avatar>
-                <div className="absolute bottom-0 right-0 bg-cyan-500 rounded-full w-5 h-5 flex items-center justify-center">
-                  <img
-                    className="w-3 h-3"
-                    alt="Frame"
-                    src="https://c.animaapp.com/m8rnoiwsmZEcq2/img/frame.svg"
-                  />
-                </div>
-              </div>
-              <div className="ml-4">
-                <div className="text-gray-100 text-base">Test User</div>
+              <div className="text-gray-100 text-base">
+                Welcome, {userData.displayName || userData.email || "user"}
               </div>
             </div>
           </div>
