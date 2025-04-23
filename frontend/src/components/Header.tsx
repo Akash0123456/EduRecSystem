@@ -28,12 +28,6 @@ export const Header = (): JSX.Element => {
           </Link>
           <nav className="flex space-x-6">
             <Link 
-              to="/home" 
-              className={`${location.pathname === '/home' ? 'text-gray-100' : 'text-gray-400'} hover:text-gray-100 transition-colors`}
-            >
-              Home
-            </Link>
-            <Link 
               to="/about" 
               className={`${location.pathname === '/about' ? 'text-gray-100' : 'text-gray-400'} hover:text-gray-100 transition-colors`}
             >

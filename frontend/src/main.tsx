@@ -3,7 +3,6 @@ import ReactDOM from "react-dom/client";
 import { BrowserRouter, Route, Routes } from "react-router-dom";
 import { Box } from "./screens/Box";
 import { Frame } from "./screens/Frame";
-import { Home } from "./screens/Home";
 import { About } from "./screens/About";
 import { Settings } from "./screens/Settings";
 import { ProtectedRoute } from "./components/ProtectedRoute";
@@ -22,11 +21,6 @@ ReactDOM.createRoot(document.getElementById("root")!).render(
         <Route path="/dashboard" element={
           <ProtectedRoute>
             <Frame />
-          </ProtectedRoute>
-        } />
-        <Route path="/home" element={
-          <ProtectedRoute>
-            <Home />
           </ProtectedRoute>
         } />
         <Route path="/about" element={
