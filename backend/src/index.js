@@ -1,0 +1,32 @@
+require("dotenv").config({ path: "./.env" });
+const express = require("express");
+const cors = require("cors");
+const app = express();
+
+// Enable CORS for all routes
+app.use(cors({
+  origin: 'http://localhost:5173', // Allow requests from the frontend
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization'],
+  credentials: true
+}));
+
+app.use(express.json());
+
+// Define routes
+const googleSearchRoutes = require("./routes/googleSearchRoutes");
+const openaiRoutes = require("./routes/openaiRoutes");
+const scraperRoutes = require("./routes/scraperRoutes");
+const queryRoutes = require("./routes/queryRoutes")
+
+// Create routes
+app.use("/search", googleSearchRoutes);
+app.use("/chat", openaiRoutes);
+app.use("/scrape", scraperRoutes);
+app.use("/query", queryRoutes);
+
+app.get("/", (req, res) => {
+    res.send("Hello, World!");
+});
+
+module.exports = app;

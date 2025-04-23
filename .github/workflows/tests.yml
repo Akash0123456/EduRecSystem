@@ -14,7 +14,7 @@ jobs:
     runs-on: ubuntu-latest
     defaults:
       run:
-        working-directory: ./edu_rec_api
+        working-directory: ./backend
     steps:
       - name: Checkout Repository
         uses: actions/checkout@v4
@@ -22,7 +22,7 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          cache-dependency-path: ./edu_rec_api/package-lock.json
+          cache-dependency-path: ./backend/package-lock.json
           node-version: 20
           cache: 'npm'
 
@@ -31,26 +31,8 @@ jobs:
 
       - name: Run Backend Tests
         run: npm test
-
-  frontend-tests:
-    name: Run Frontend Tests
-    runs-on: ubuntu-latest
-    defaults:
-      run:
-        working-directory: ./edu_rec_system
-    steps:
-      - name: Checkout Repository
-        uses: actions/checkout@v4
-
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          cache-dependency-path: ./edu_rec_system/package-lock.json
-          node-version: 20
-          cache: 'npm'
-
-      - name: Install Dependencies
-        run: npm ci
-
-      - name: Run Frontend Tests
-        run: npm test
+        env:
+          NODE_ENV: test
+          GOOGLE_API_KEY: ${{ secrets.GOOGLE_API_KEY }}
+          GOOGLE_CSE_ID: ${{ secrets.GOOGLE_CSE_ID }}
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
