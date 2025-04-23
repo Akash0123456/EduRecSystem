@@ -103,12 +103,3 @@ export async function sendMessage(message: string, conversationHistory: Message[
     };
   }
 }
-
-/**
- * Generate a descriptive chat name based on the user's message
- * @param message The user's message
- * @returns A short, descriptive name for the chat
- */
-export async function generateChatName(message: string): Promise<string> {
-  return message.length > 30 ? `${message.substring(0, 30)}...` : message;
-} 
