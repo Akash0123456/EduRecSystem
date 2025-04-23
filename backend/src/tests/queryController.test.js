@@ -163,4 +163,61 @@ describe('getAnswerWithSources', () => {
       error: "Something went wrong during search or scraping."
     });
   });
+
+  test('should handle empty search results', async () => {
+    googleApiClient.get.mockResolvedValue({
+      data: {
+        items: []
+      }
+    });
+    await getAnswerWithSources(mockReq, mockRes);
+    expect(mockStatus).toHaveBeenCalledWith(200);
+    expect(mockJson).toHaveBeenCalledWith(expect.objectContaining({
+      answer: expect.any(Object),
+      sources: [],
+      analysisMethodology: expect.any(String)
+    }));
+  });
+
+  test('should handle failed scraping', async () => {
+    scrapeMultipleUrls.mockResolvedValue([]);
+    await getAnswerWithSources(mockReq, mockRes);
+    expect(mockStatus).toHaveBeenCalledWith(200);
+    expect(mockJson).toHaveBeenCalledWith(expect.objectContaining({
+      answer: expect.any(Object),
+      sources: [],
+      analysisMethodology: expect.any(String)
+    }));
+  });
+
+  test('should handle OpenAI API error', async () => {
+    getChatCompletion.mockRejectedValue(new Error('OpenAI API Error'));
+    await getAnswerWithSources(mockReq, mockRes);
+    expect(mockStatus).toHaveBeenCalledWith(500);
+    expect(mockJson).toHaveBeenCalledWith({
+      error: "Something went wrong during search or scraping."
+    });
+  });
+
+  test('should handle search query generation error', async () => {
+    generateSearchQuery.mockRejectedValue(new Error('Query Generation Error'));
+    await getAnswerWithSources(mockReq, mockRes);
+    expect(mockStatus).toHaveBeenCalledWith(500);
+    expect(mockJson).toHaveBeenCalledWith({
+      error: "Something went wrong during search or scraping."
+    });
+  });
+
+  test('should filter out banned domains from search results', async () => {
+    googleApiClient.get.mockResolvedValue({
+      data: {
+        items: [
+          { link: 'https://facebook.com/some-page', title: 'Facebook Page' },
+          { link: 'https://example.com/valid', title: 'Valid Page' }
+        ]
+      }
+    });
+    await getAnswerWithSources(mockReq, mockRes);
+    expect(scrapeMultipleUrls).toHaveBeenCalledWith(['https://example.com/valid'], 3, 4000);
+  });
 }); 
