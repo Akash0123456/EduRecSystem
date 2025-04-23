@@ -10,7 +10,11 @@ import {
   where, 
   orderBy,
   Timestamp,
-  serverTimestamp
+  serverTimestamp,
+  limit,
+  startAfter,
+  DocumentSnapshot,
+  QueryDocumentSnapshot
 } from 'firebase/firestore';
 import { Message, RecentChat } from '../models/chat';
 import { auth } from '../firebase';
@@ -116,25 +120,33 @@ export const addMessage = async (
   }
 };
 
-// Get all chats for the current user
-export const getUserChats = async (): Promise<RecentChat[]> => {
+// Get chats for the current user with pagination
+export const getUserChats = async (lastDoc?: QueryDocumentSnapshot): Promise<{
+  chats: RecentChat[];
+  lastDoc: QueryDocumentSnapshot | null;
+}> => {
   try {
     const userId = getCurrentUserId();
-    console.log("Fetching chats for userId:", userId); // Debug log
+    console.log("Fetching chats for userId:", userId);
     
-    const chatsQuery = query(
+    let chatsQuery = query(
       collection(db, CHATS_COLLECTION),
       where("userId", "==", userId),
-      orderBy("updatedAt", "desc")
+      orderBy("updatedAt", "desc"),
+      limit(10)
     );
+
+    if (lastDoc) {
+      chatsQuery = query(chatsQuery, startAfter(lastDoc));
+    }
     
     const querySnapshot = await getDocs(chatsQuery);
-    console.log("Number of chats found:", querySnapshot.size); // Debug log
+    console.log("Number of chats found:", querySnapshot.size);
     
     const chats: RecentChat[] = [];
     for (const doc of querySnapshot.docs) {
       const chatData = doc.data();
-      console.log("Chat data:", chatData); // Debug log
+      console.log("Chat data:", chatData);
       
       // Get messages for this chat
       const messagesQuery = query(
@@ -159,9 +171,12 @@ export const getUserChats = async (): Promise<RecentChat[]> => {
       });
     }
     
-    return chats;
+    return {
+      chats,
+      lastDoc: querySnapshot.docs[querySnapshot.docs.length - 1] || null
+    };
   } catch (error) {
-    console.error("Error in getUserChats:", error); // Debug log
+    console.error("Error in getUserChats:", error);
     throw error;
   }
 };

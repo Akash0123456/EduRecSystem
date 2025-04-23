@@ -1,4 +1,4 @@
-import { MessageSquareIcon, SendIcon, Trash2Icon } from "lucide-react";
+import { MessageSquareIcon, SendIcon, Trash2Icon, Loader2Icon } from "lucide-react";
 import React, { useState, useRef, useEffect } from "react";
 import { Header } from "../../components/Header";
 import { useNavigate } from "react-router-dom";
@@ -15,6 +15,7 @@ import { createChat, addMessage, getUserChats, updateChatTitle, deleteChat } fro
 import { generateChatName } from "../../services/openaiService";
 import { auth } from "../../firebase";
 import { onAuthStateChanged, signOut } from "firebase/auth";
+import { QueryDocumentSnapshot } from "firebase/firestore";
 
 // Define the type for recent chats
 interface RecentChat {
@@ -37,6 +38,7 @@ export const Frame = (): JSX.Element => {
   const [assistantResponses, setAssistantResponses] = useState<Record<string, AssistantResponse>>({});
   const [inputValue, setInputValue] = useState<string>("");
   const [isLoading, setIsLoading] = useState<boolean>(false);
+  const [isInitialLoading, setIsInitialLoading] = useState<boolean>(true);
   const [retryingMessageId, setRetryingMessageId] = useState<string | null>(null);
   const [showFeedbackPrompt, setShowFeedbackPrompt] = useState<boolean>(false);
   const [lastRetryMessageId, setLastRetryMessageId] = useState<string | null>(null);
@@ -48,6 +50,11 @@ export const Frame = (): JSX.Element => {
     displayName: null,
     email: null
   });
+  const [hasMoreChats, setHasMoreChats] = useState<boolean>(true);
+  const [lastLoadedChat, setLastLoadedChat] = useState<QueryDocumentSnapshot | null>(null);
+  const [isLoadingMore, setIsLoadingMore] = useState<boolean>(false);
+  const chatListRef = useRef<HTMLDivElement>(null);
+  const observerRef = useRef<IntersectionObserver | null>(null);
   
   // Get current messages from active chat
   const currentChat = recentChats.find(chat => chat.id === activeChat);
@@ -56,49 +63,132 @@ export const Frame = (): JSX.Element => {
   // Ref for chat container to auto-scroll
   const chatContainerRef = useRef<HTMLDivElement>(null);
   
-  // Handle authentication state changes
+  // Setup intersection observer for infinite scroll
+  useEffect(() => {
+    const options = {
+      root: null,
+      rootMargin: '100px', // Load more when user is 100px from bottom
+      threshold: 0.1
+    };
+
+    const observer = new IntersectionObserver((entries) => {
+      const [entry] = entries;
+      if (entry.isIntersecting && hasMoreChats && !isLoadingMore && !isInitialLoading) {
+        console.log('Intersection observer triggered - loading more chats');
+        loadMoreChats();
+      }
+    }, options);
+
+    if (chatListRef.current) {
+      observer.observe(chatListRef.current);
+    }
+
+    return () => {
+      observer.disconnect();
+    };
+  }, [hasMoreChats, isLoadingMore, isInitialLoading]);
+
+  // Load more chats
+  const loadMoreChats = async () => {
+    if (!hasMoreChats || isLoadingMore || isInitialLoading) {
+      console.log('Skipping load more:', { hasMoreChats, isLoadingMore, isInitialLoading });
+      return;
+    }
+
+    console.log('Starting to load more chats');
+    setIsLoadingMore(true);
+    try {
+      const { chats: newChats, lastDoc } = await getUserChats(lastLoadedChat || undefined);
+      
+      console.log('Loading more chats. Current chats:', recentChats.map(c => c.id));
+      console.log('New chats to add:', newChats.map(c => c.id));
+      
+      if (newChats.length === 0) {
+        console.log('No more chats to load');
+        setHasMoreChats(false);
+      } else {
+        // Filter out any chats that might already exist in the list
+        const existingChatIds = new Set(recentChats.map(chat => chat.id));
+        const uniqueNewChats = newChats.filter(chat => !existingChatIds.has(chat.id));
+        
+        console.log('Filtered unique new chats:', uniqueNewChats.map(c => c.id));
+        
+        if (uniqueNewChats.length > 0) {
+          setRecentChats(prev => {
+            const updated = [...prev, ...uniqueNewChats];
+            console.log('Updated chat list:', updated.map(c => c.id));
+            return updated;
+          });
+          setLastLoadedChat(lastDoc);
+          setHasMoreChats(newChats.length === 10); // If we got 10 chats, there might be more
+        } else {
+          console.log('No unique new chats to add');
+          setHasMoreChats(false);
+        }
+      }
+    } catch (error) {
+      console.error("Error loading more chats:", error);
+    } finally {
+      setIsLoadingMore(false);
+    }
+  };
+
+  // Update initial chat loading
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, (user) => {
       setIsAuthenticated(!!user);
       if (user) {
-        // Set user data
         setUserData({
           displayName: user.displayName,
           email: user.email
         });
-        // Load chats when user is authenticated
-        const loadChats = async () => {
-          try {
-            const chats = await getUserChats();
-            setRecentChats(chats);
-            
-            // Set assistant responses for all assistant messages
-            const responses: Record<string, AssistantResponse> = {};
-            chats.forEach(chat => {
-              chat.messages.forEach(message => {
-                if (message.role === 'assistant' && message.sources) {
-                  responses[message.id] = {
-                    message,
-                    sources: message.sources,
-                    analysisMethodology: message.analysisMethodology || '',
-                  };
-                }
+        const loadInitialChats = async () => {
+          if (isInitialLoading) {
+            setIsInitialLoading(true);
+            try {
+              const { chats, lastDoc } = await getUserChats();
+              console.log('Initial chats loaded:', chats.map(c => c.id));
+              
+              // Ensure no duplicate chats in initial load
+              const uniqueChats = Array.from(new Map(chats.map(chat => [chat.id, chat])).values());
+              console.log('Unique initial chats:', uniqueChats.map(c => c.id));
+              
+              setRecentChats(uniqueChats);
+              setLastLoadedChat(lastDoc);
+              setHasMoreChats(chats.length === 10);
+              
+              // Set assistant responses for all assistant messages
+              const responses: Record<string, AssistantResponse> = {};
+              uniqueChats.forEach(chat => {
+                chat.messages.forEach(message => {
+                  if (message.role === 'assistant' && message.sources) {
+                    responses[message.id] = {
+                      message,
+                      sources: message.sources,
+                      analysisMethodology: message.analysisMethodology || '',
+                    };
+                  }
+                });
               });
-            });
-            setAssistantResponses(responses);
-          } catch (error) {
-            console.error("Error loading chats:", error);
+              setAssistantResponses(responses);
+            } catch (error) {
+              console.error("Error loading chats:", error);
+            } finally {
+              setIsInitialLoading(false);
+            }
           }
         };
-        loadChats();
+        loadInitialChats();
       } else {
-        // Clear user data and chats when user is not authenticated
         setUserData({
           displayName: null,
           email: null
         });
         setRecentChats([]);
         setActiveChat("");
+        setLastLoadedChat(null);
+        setHasMoreChats(true);
+        setIsInitialLoading(false);
       }
     });
 
@@ -111,6 +201,11 @@ export const Frame = (): JSX.Element => {
       chatContainerRef.current.scrollTop = chatContainerRef.current.scrollHeight;
     }
   }, [messages, assistantResponses]);
+
+  // Add a debug effect to monitor chat changes
+  useEffect(() => {
+    console.log('Current chat list:', recentChats.map(c => c.id));
+  }, [recentChats]);
 
   // Handle starting a new chat
   const handleStartNewChat = async () => {
@@ -127,8 +222,9 @@ export const Frame = (): JSX.Element => {
       };
       
       setRecentChats(prev => {
-        const updated = prev.map(chat => ({...chat, active: false}));
-        return [newChat, ...updated];
+        const updated = [newChat, ...prev];
+        console.log('Updated chat list after new chat:', updated.map(c => c.id));
+        return updated;
       });
       
       setActiveChat(newChatId);
@@ -414,9 +510,19 @@ export const Frame = (): JSX.Element => {
     e.stopPropagation(); // Prevent chat selection when clicking delete
     try {
       await deleteChat(chatId);
+      
+      // Update the chats list by filtering out the deleted chat
       setRecentChats(prev => prev.filter(chat => chat.id !== chatId));
+      
+      // If the deleted chat was active, clear the active chat
       if (activeChat === chatId) {
         setActiveChat("");
+      }
+      
+      // If we've deleted all visible chats and there might be more, load more
+      if (recentChats.length <= 1 && hasMoreChats) {
+        setLastLoadedChat(null);
+        loadMoreChats();
       }
     } catch (error) {
       console.error("Error deleting chat:", error);
@@ -453,42 +559,62 @@ export const Frame = (): JSX.Element => {
           <div className="p-6 flex-1 overflow-auto">
             <div className="text-gray-400 text-sm mb-2">Recent Chats</div>
             <div className="space-y-2">
-              {recentChats.map((chat) => (
-                <Card
-                  key={chat.id}
-                  className={`${chat.active ? "bg-[#1f293780]" : "bg-transparent"} rounded-lg hover:bg-[#1f293780] transition-colors cursor-pointer`}
-                  onClick={() => handleSelectChat(chat.id)}
-                >
-                  <CardContent className="p-3">
-                    <div className="flex items-start justify-between">
-                      <div className="flex items-start">
-                        <div className="flex items-center justify-center mt-2.5">
-                          <img
-                            className="w-3.5 h-4"
-                            alt="Chat icon"
-                            src={chat.icon}
-                          />
-                        </div>
-                        <div className="ml-[26px]">
-                          <div className="text-gray-100 text-sm font-medium">
-                            {chat.title}
+              {isInitialLoading ? (
+                <div className="flex justify-center py-4">
+                  <Loader2Icon className="h-6 w-6 text-cyan-500 animate-spin" />
+                </div>
+              ) : (
+                <>
+                  {recentChats.map((chat) => (
+                    <Card
+                      key={chat.id}
+                      className={`${chat.active ? "bg-[#1f293780]" : "bg-transparent"} rounded-lg hover:bg-[#1f293780] transition-colors cursor-pointer`}
+                      onClick={() => handleSelectChat(chat.id)}
+                    >
+                      <CardContent className="p-3">
+                        <div className="flex items-start justify-between">
+                          <div className="flex items-start">
+                            <div className="flex items-center justify-center mt-2.5">
+                              <img
+                                className="w-3.5 h-4"
+                                alt="Chat icon"
+                                src={chat.icon}
+                              />
+                            </div>
+                            <div className="ml-[26px]">
+                              <div className="text-gray-100 text-sm font-medium">
+                                {chat.title}
+                              </div>
+                              <div className="text-gray-400 text-xs">{chat.time}</div>
+                            </div>
                           </div>
-                          <div className="text-gray-400 text-xs">{chat.time}</div>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-8 w-8 p-0 hover:bg-red-500/20 hover:text-red-500"
+                            onClick={(e) => handleDeleteChat(chat.id, e)}
+                            title="Delete chat"
+                          >
+                            <Trash2Icon className="h-4 w-4" />
+                          </Button>
                         </div>
-                      </div>
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        className="h-8 w-8 p-0 hover:bg-red-500/20 hover:text-red-500"
-                        onClick={(e) => handleDeleteChat(chat.id, e)}
-                        title="Delete chat"
-                      >
-                        <Trash2Icon className="h-4 w-4" />
-                      </Button>
+                      </CardContent>
+                    </Card>
+                  ))}
+                  
+                  {/* Loading indicator */}
+                  {isLoadingMore && (
+                    <div className="flex justify-center py-4">
+                      <Loader2Icon className="h-6 w-6 text-cyan-500 animate-spin" />
                     </div>
-                  </CardContent>
-                </Card>
-              ))}
+                  )}
+                  
+                  {/* Intersection observer target */}
+                  {hasMoreChats && !isLoadingMore && (
+                    <div ref={chatListRef} className="h-4" />
+                  )}
+                </>
+              )}
             </div>
           </div>
         </aside>
