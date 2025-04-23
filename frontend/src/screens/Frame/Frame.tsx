@@ -1,4 +1,4 @@
-import { MessageSquareIcon, SendIcon} from "lucide-react";
+import { MessageSquareIcon, SendIcon, Trash2Icon } from "lucide-react";
 import React, { useState, useRef, useEffect } from "react";
 import { Header } from "../../components/Header";
 import { useNavigate } from "react-router-dom";
@@ -11,7 +11,7 @@ import { Input } from "../../components/ui/input";
 import { ChatMessage } from "../../components/ChatMessage";
 import { Message, AssistantResponse, isStringContent } from "../../models/chat";
 import { sendMessage } from "../../services/queryService";
-import { createChat, addMessage, getUserChats, updateChatTitle } from "../../services/chatService";
+import { createChat, addMessage, getUserChats, updateChatTitle, deleteChat } from "../../services/chatService";
 import { generateChatName } from "../../services/openaiService";
 import { auth } from "../../firebase";
 import { onAuthStateChanged, signOut } from "firebase/auth";
@@ -409,6 +409,20 @@ export const Frame = (): JSX.Element => {
     }
   };
 
+  // Handle deleting a chat
+  const handleDeleteChat = async (chatId: string, e: React.MouseEvent) => {
+    e.stopPropagation(); // Prevent chat selection when clicking delete
+    try {
+      await deleteChat(chatId);
+      setRecentChats(prev => prev.filter(chat => chat.id !== chatId));
+      if (activeChat === chatId) {
+        setActiveChat("");
+      }
+    } catch (error) {
+      console.error("Error deleting chat:", error);
+    }
+  };
+
   return (
     <div className="flex flex-col bg-gray-900 min-h-screen">
       <Header />
@@ -446,20 +460,31 @@ export const Frame = (): JSX.Element => {
                   onClick={() => handleSelectChat(chat.id)}
                 >
                   <CardContent className="p-3">
-                    <div className="flex items-start">
-                      <div className="flex items-center justify-center mt-2.5">
-                        <img
-                          className="w-3.5 h-4"
-                          alt="Chat icon"
-                          src={chat.icon}
-                        />
-                      </div>
-                      <div className="ml-[26px]">
-                        <div className="text-gray-100 text-sm font-medium">
-                          {chat.title}
+                    <div className="flex items-start justify-between">
+                      <div className="flex items-start">
+                        <div className="flex items-center justify-center mt-2.5">
+                          <img
+                            className="w-3.5 h-4"
+                            alt="Chat icon"
+                            src={chat.icon}
+                          />
                         </div>
-                        <div className="text-gray-400 text-xs">{chat.time}</div>
+                        <div className="ml-[26px]">
+                          <div className="text-gray-100 text-sm font-medium">
+                            {chat.title}
+                          </div>
+                          <div className="text-gray-400 text-xs">{chat.time}</div>
+                        </div>
                       </div>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-8 w-8 p-0 hover:bg-red-500/20 hover:text-red-500"
+                        onClick={(e) => handleDeleteChat(chat.id, e)}
+                        title="Delete chat"
+                      >
+                        <Trash2Icon className="h-4 w-4" />
+                      </Button>
                     </div>
                   </CardContent>
                 </Card>
