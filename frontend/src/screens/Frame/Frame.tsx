@@ -226,7 +226,7 @@ export const Frame = (): JSX.Element => {
       };
       
       // Check if this is the first message to generate a chat name
-      const isFirstMessage = currentChat.messages.length === 1;
+      const isFirstMessage = currentChat.messages.length === 0;
       
       if (isFirstMessage) {
         try {
