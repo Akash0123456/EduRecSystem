@@ -225,5 +225,6 @@ async function getAnswerWithSources(req, res) {
 
 module.exports = {
   getAnswerWithSources,
-  isBannedDomain
+  isBannedDomain,
+  parseMessage
 };
