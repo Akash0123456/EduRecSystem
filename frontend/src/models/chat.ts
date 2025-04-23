@@ -13,6 +13,8 @@ export interface Message {
   content: string | StructuredContent;
   role: 'user' | 'assistant';
   timestamp: Date;
+  sources?: ChatSource[];
+  analysisMethodology?: string;
 }
 
 export interface ChatSource {

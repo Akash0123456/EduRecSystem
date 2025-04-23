@@ -83,7 +83,9 @@ export const deleteChat = async (chatId: string): Promise<void> => {
 // Add a message to a chat
 export const addMessage = async (
   chatId: string, 
-  message: Omit<Message, 'id' | 'timestamp'>
+  message: Omit<Message, 'id' | 'timestamp'>,
+  sources?: ChatSource[],
+  analysisMethodology?: string
 ): Promise<string> => {
   try {
     const userId = getCurrentUserId();
@@ -93,6 +95,8 @@ export const addMessage = async (
       ...message,
       userId,
       timestamp: serverTimestamp(),
+      sources: sources || [],
+      analysisMethodology: analysisMethodology || '',
     };
     console.log("Message data being sent:", messageData); // Debug log
     
@@ -180,6 +184,8 @@ export const getChatMessages = async (chatId: string): Promise<Message[]> => {
       content: data.content,
       role: data.role,
       timestamp: data.timestamp?.toDate() || new Date(),
+      sources: data.sources || [],
+      analysisMethodology: data.analysisMethodology || '',
     };
   });
 }; 

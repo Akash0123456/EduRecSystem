@@ -9,7 +9,7 @@ import {
 } from "../../components/ui/card";
 import { Input } from "../../components/ui/input";
 import { ChatMessage } from "../../components/ChatMessage";
-import { Message, AssistantResponse } from "../../models/chat";
+import { Message, AssistantResponse, isStringContent } from "../../models/chat";
 import { sendMessage } from "../../services/queryService";
 import { createChat, addMessage, getUserChats, updateChatTitle } from "../../services/chatService";
 import { generateChatName } from "../../services/openaiService";
@@ -71,6 +71,21 @@ export const Frame = (): JSX.Element => {
           try {
             const chats = await getUserChats();
             setRecentChats(chats);
+            
+            // Set assistant responses for all assistant messages
+            const responses: Record<string, AssistantResponse> = {};
+            chats.forEach(chat => {
+              chat.messages.forEach(message => {
+                if (message.role === 'assistant' && message.sources) {
+                  responses[message.id] = {
+                    message,
+                    sources: message.sources,
+                    analysisMethodology: message.analysisMethodology || '',
+                  };
+                }
+              });
+            });
+            setAssistantResponses(responses);
           } catch (error) {
             console.error("Error loading chats:", error);
           }
@@ -185,7 +200,7 @@ export const Frame = (): JSX.Element => {
       
       // Call OpenAI API with conversation history
       const response = await sendMessage(
-        newUserMessage.content,
+        isStringContent(newUserMessage.content) ? newUserMessage.content : JSON.stringify(newUserMessage.content),
         currentChat.messages
       );
       
@@ -196,7 +211,12 @@ export const Frame = (): JSX.Element => {
       };
       
       // Add assistant message to Firestore
-      const assistantMessageId = await addMessage(activeChat, assistantMessage);
+      const assistantMessageId = await addMessage(
+        activeChat, 
+        assistantMessage,
+        response.sources,
+        response.analysisMethodology
+      );
       
       // Update local state
       const fullAssistantMessage: Message = {
@@ -210,7 +230,9 @@ export const Frame = (): JSX.Element => {
       
       if (isFirstMessage) {
         try {
-          const chatName = await generateChatName(newUserMessage.content);
+          const chatName = await generateChatName(
+            isStringContent(newUserMessage.content) ? newUserMessage.content : JSON.stringify(newUserMessage.content)
+          );
           // Update the chat title in Firestore with the generated name
           await updateChatTitle(activeChat, chatName);
           
@@ -316,7 +338,12 @@ export const Frame = (): JSX.Element => {
       };
       
       // Add new assistant message to Firestore
-      const newAssistantMessageId = await addMessage(activeChat, newAssistantMessage);
+      const newAssistantMessageId = await addMessage(
+        activeChat, 
+        newAssistantMessage,
+        response.sources,
+        response.analysisMethodology
+      );
       
       // Update local state
       const fullAssistantMessage: Message = {
