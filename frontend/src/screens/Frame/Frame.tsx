@@ -1,12 +1,7 @@
-import { MessageSquareIcon, SendIcon, LogOutIcon } from "lucide-react";
+import { MessageSquareIcon, SendIcon} from "lucide-react";
 import React, { useState, useRef, useEffect } from "react";
 import { Header } from "../../components/Header";
 import { useNavigate } from "react-router-dom";
-import {
-  Avatar,
-  AvatarFallback,
-  AvatarImage,
-} from "../../components/ui/avatar";
 import { Button } from "../../components/ui/button";
 import {
   Card,
@@ -14,10 +9,10 @@ import {
 } from "../../components/ui/card";
 import { Input } from "../../components/ui/input";
 import { ChatMessage } from "../../components/ChatMessage";
-import { Message, ChatSource, AssistantResponse } from "../../models/chat";
-import { generateId } from "../../utils/helpers";
-import { sendMessage, generateChatName } from "../../services/queryService";
+import { Message, AssistantResponse } from "../../models/chat";
+import { sendMessage } from "../../services/queryService";
 import { createChat, addMessage, getUserChats, updateChatTitle } from "../../services/chatService";
+import { generateChatName } from "../../services/openaiService";
 import { auth } from "../../firebase";
 import { onAuthStateChanged, signOut } from "firebase/auth";
 
