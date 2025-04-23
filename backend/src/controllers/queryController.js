@@ -30,22 +30,13 @@ function isBannedDomain(url) {
 
 /**
  * Parse the message to separate previous questions from the current question
- * @param {string} message The full message containing all questions
+ * @param {Object} message The message object containing content and previousQuestions
  * @returns {Object} Object containing previous questions and current question
  */
 function parseMessage(message) {
-  // Split the message by ' and ' to get individual questions
-  const questions = message.split(' and ');
-  
-  // The last question is the current question
-  const currentQuestion = questions.pop();
-  
-  // All other questions are previous questions
-  const previousQuestions = questions;
-  
   return {
-    previousQuestions,
-    currentQuestion
+    previousQuestions: message.previousQuestions || [],
+    currentQuestion: message.content
   };
 }
 
@@ -68,11 +59,12 @@ exports.getAnswerWithSources = async (req, res) => {
     
     try {
         // Parse the message to separate previous questions from current question
-        const { previousQuestions, currentQuestion } = parseMessage(firstUserMessage.content);
+        const { previousQuestions, currentQuestion } = parseMessage(firstUserMessage);
         
         // Generate an effective search query using ChatGPT
         const searchQuery = await generateSearchQuery(previousQuestions, currentQuestion);
         console.log("searchQuery", searchQuery);
+        
         // Format the message for the AI
         const formattedMessage = previousQuestions.length > 0
           ? `Previously asked questions: ${previousQuestions.join(' and ')} Current question: ${currentQuestion}`

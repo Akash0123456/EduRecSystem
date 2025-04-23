@@ -7,24 +7,16 @@ const MAX_CONTEXT_LENGTH = 2000;
 /**
  * Get the context from previous user questions, limited by character count
  * @param messages Array of previous messages
- * @returns A string containing the concatenated user questions
+ * @returns An array containing the most recent user questions
  */
-function getQuestionContext(messages: Message[]): string {
+function getQuestionContext(messages: Message[]): string[] {
   // Filter only user messages and get their content
   const userQuestions = messages
     .filter(msg => msg.role === 'user')
     .map(msg => msg.content as string); // We know these are strings since they're user messages
   
-  // Start with the most recent questions
-  let context = userQuestions.join(' and ');
-  
-  // If we're over the limit, remove oldest questions until we're under
-  while (context.length > MAX_CONTEXT_LENGTH && userQuestions.length > 1) {
-    userQuestions.shift(); // Remove oldest question
-    context = userQuestions.join(' and ');
-  }
-  
-  return context;
+  // Return the most recent questions, up to 10
+  return userQuestions.slice(-10);
 }
 
 /**
@@ -37,13 +29,8 @@ export async function sendMessage(message: string, conversationHistory: Message[
   
   try {
     // Get the question context from previous messages
-    const questionContext = getQuestionContext(conversationHistory);
+    const previousQuestions = getQuestionContext(conversationHistory);
     
-    // If we have previous questions, prepend them to the current message
-    const fullMessage = questionContext 
-      ? `${questionContext} and ${message}`
-      : message;
-    console.log('Full message:', fullMessage);
     const response = await fetch(`${API_BASE_URL}/query`, {
       method: 'POST',
       headers: {
@@ -53,7 +40,8 @@ export async function sendMessage(message: string, conversationHistory: Message[
         messages: [
           {
             role: 'user',
-            content: fullMessage
+            content: message,
+            previousQuestions: previousQuestions
           }
         ]
       })
