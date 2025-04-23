@@ -2,6 +2,29 @@
 @tailwind components;
 @tailwind utilities;
 
+/* Source highlighting styles */
+.source-sentence {
+  position: relative;
+  cursor: pointer;
+  display: inline-block;
+}
+
+/* Highlight effect for source items in the references list */
+.source-item {
+  transition: background-color 0.2s ease;
+  border-radius: 4px;
+  padding: 4px;
+}
+
+.source-item.bg-cyan-900\/20 {
+  background-color: rgba(8, 145, 178, 0.1);
+}
+
+/* Ensure tooltips don't interfere with text selection */
+.source-sentence .absolute {
+  pointer-events: none;
+}
+
 @layer base {
   :root {
     --background: 0 0% 100%;
