@@ -30,4 +30,7 @@ steps:
       - 'GOOGLE_API_KEY=${_GOOGLE_API_KEY},GOOGLE_CSE_ID=${_GOOGLE_CSE_ID},OPENAI_API_KEY=${_OPENAI_API_KEY}'
 
 images:
-  - 'gcr.io/$PROJECT_ID/backend:$COMMIT_SHA' 
+  - 'gcr.io/$PROJECT_ID/backend:$COMMIT_SHA'
+
+options:
+  logging: CLOUD_LOGGING_ONLY 
