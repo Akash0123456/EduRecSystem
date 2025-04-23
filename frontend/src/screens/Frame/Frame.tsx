@@ -1,6 +1,7 @@
-import { MessageSquareIcon, SendIcon } from "lucide-react";
+import { MessageSquareIcon, SendIcon, LogOutIcon } from "lucide-react";
 import React, { useState, useRef, useEffect } from "react";
 import { Header } from "../../components/Header";
+import { useNavigate } from "react-router-dom";
 import {
   Avatar,
   AvatarFallback,
@@ -18,7 +19,7 @@ import { generateId } from "../../utils/helpers";
 import { sendMessage, generateChatName } from "../../services/queryService";
 import { createChat, addMessage, getUserChats, updateChatTitle } from "../../services/chatService";
 import { auth } from "../../firebase";
-import { onAuthStateChanged } from "firebase/auth";
+import { onAuthStateChanged, signOut } from "firebase/auth";
 
 // Define the type for recent chats
 interface RecentChat {
@@ -34,6 +35,7 @@ interface RecentChat {
 const sampleRecentChats: RecentChat[] = [];
 
 export const Frame = (): JSX.Element => {
+  const navigate = useNavigate();
   // State for chats and current active chat
   const [recentChats, setRecentChats] = useState<RecentChat[]>(sampleRecentChats);
   const [activeChat, setActiveChat] = useState<string>("");
@@ -358,6 +360,17 @@ export const Frame = (): JSX.Element => {
     console.log(`User ${liked ? 'liked' : 'disliked'} the new response`);
     setShowFeedbackPrompt(false);
   };
+
+  // Handle logout
+  const handleLogout = async () => {
+    try {
+      await signOut(auth);
+      navigate('/');
+    } catch (error) {
+      console.error("Error signing out:", error);
+    }
+  };
+
   return (
     <div className="flex flex-col bg-gray-900 min-h-screen">
       <Header />

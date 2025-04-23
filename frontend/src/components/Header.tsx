@@ -1,8 +1,22 @@
 import React from 'react';
-import { Link, useLocation } from 'react-router-dom';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
+import { Button } from './ui/button';
+import { LogOutIcon } from 'lucide-react';
+import { auth } from '../firebase';
+import { signOut } from 'firebase/auth';
 
 export const Header = (): JSX.Element => {
   const location = useLocation();
+  const navigate = useNavigate();
+
+  const handleLogout = async () => {
+    try {
+      await signOut(auth);
+      navigate('/');
+    } catch (error) {
+      console.error("Error signing out:", error);
+    }
+  };
   
   return (
     <header className="w-full h-[69px] bg-[#111827f2] border-b border-gray-800 fixed top-0 z-10">
@@ -33,6 +47,14 @@ export const Header = (): JSX.Element => {
             </Link>
           </nav>
         </div>
+        <Button
+          variant="ghost"
+          className="text-gray-400 hover:text-gray-100 hover:bg-gray-800 flex items-center gap-2"
+          onClick={handleLogout}
+        >
+          <span>Log out</span>
+          <LogOutIcon className="h-4 w-4" />
+        </Button>
       </div>
     </header>
   );
