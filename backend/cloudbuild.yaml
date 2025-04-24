@@ -1,18 +1,28 @@
 steps:
-  # Build the application
+  # Step 1: Install backend dependencies
   - name: 'gcr.io/cloud-builders/npm'
     args: ['install']
     dir: 'backend'
 
-  # Build the container image
+  # Step 2: Build Docker image and tag it for Artifact Registry
   - name: 'gcr.io/cloud-builders/docker'
-    args: ['build', '-t', 'gcr.io/$PROJECT_ID/backend:$COMMIT_SHA', './backend']
+    args:
+      [
+        'build',
+        '-t',
+        'us-central1-docker.pkg.dev/$PROJECT_ID/edu-rec-backend-repo/backend:$COMMIT_SHA',
+        './backend'
+      ]
 
-  # Push the container image to Container Registry
+  # Step 3: Push Docker image to Artifact Registry
   - name: 'gcr.io/cloud-builders/docker'
-    args: ['push', 'gcr.io/$PROJECT_ID/backend:$COMMIT_SHA']
+    args:
+      [
+        'push',
+        'us-central1-docker.pkg.dev/$PROJECT_ID/edu-rec-backend-repo/backend:$COMMIT_SHA'
+      ]
 
-  # Deploy container image to Cloud Run
+  # Step 4: Deploy to Cloud Run using the Artifact Registry image
   - name: 'gcr.io/google.com/cloudsdktool/cloud-sdk'
     entrypoint: gcloud
     args:
@@ -20,7 +30,7 @@ steps:
       - 'deploy'
       - 'backend'
       - '--image'
-      - 'gcr.io/$PROJECT_ID/backend:$COMMIT_SHA'
+      - 'us-central1-docker.pkg.dev/$PROJECT_ID/edu-rec-backend-repo/backend:$COMMIT_SHA'
       - '--region'
       - 'us-central1'
       - '--platform'
@@ -30,7 +40,7 @@ steps:
       - 'GOOGLE_API_KEY=${_GOOGLE_API_KEY},GOOGLE_CSE_ID=${_GOOGLE_CSE_ID},OPENAI_API_KEY=${_OPENAI_API_KEY}'
 
 images:
-  - 'gcr.io/$PROJECT_ID/backend:$COMMIT_SHA'
+  - 'us-central1-docker.pkg.dev/$PROJECT_ID/edu-rec-backend-repo/backend:$COMMIT_SHA'
 
 options:
   logging: CLOUD_LOGGING_ONLY
