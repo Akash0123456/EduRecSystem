@@ -1,5 +1,6 @@
-import { ChatResponse } from './openaiService';
+import { ChatResponse, sendMessage as sendOpenAIMessage } from './openaiService';
 import { Message } from '../models/chat';
+import { Settings } from '../contexts/SettingsContext';
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:3000';
 const MAX_CONTEXT_LENGTH = 2000;
@@ -23,28 +24,53 @@ function getQuestionContext(messages: Message[]): string[] {
  * Send a message to the query API and get a response formatted for educational purposes
  * @param message The user's message
  * @param conversationHistory Optional array of previous messages in the conversation
+ * @param settings Optional user settings for customizing the response
  * @returns A formatted response with answer, sources, and analysis methodology
  */
-export async function sendMessage(message: string, conversationHistory: Message[] = []): Promise<ChatResponse> {
+export async function sendMessage(
+  message: string, 
+  conversationHistory: Message[] = [],
+  settings?: Settings
+): Promise<ChatResponse> {
   
   try {
+    // Check if we should use the direct OpenAI service instead of the backend API
+    // This is useful for development or when the backend is not available
+    const useDirectOpenAI = import.meta.env.VITE_USE_DIRECT_OPENAI === 'true';
+    
+    if (useDirectOpenAI) {
+      // Use the OpenAI service directly with the user settings
+      return await sendOpenAIMessage(message, settings);
+    }
+    
     // Get the question context from previous messages
     const previousQuestions = getQuestionContext(conversationHistory);
+    
+    // Include settings in the API request if available
+    const requestBody: any = {
+      messages: [
+        {
+          role: 'user',
+          content: message,
+          previousQuestions: previousQuestions
+        }
+      ]
+    };
+    
+    // Add settings to the request if available
+    if (settings) {
+      requestBody.settings = {
+        responseLength: settings.responseLength,
+        citationStyle: settings.citationStyle
+      };
+    }
     
     const response = await fetch(`${API_BASE_URL}/query`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
       },
-      body: JSON.stringify({
-        messages: [
-          {
-            role: 'user',
-            content: message,
-            previousQuestions: previousQuestions
-          }
-        ]
-      })
+      body: JSON.stringify(requestBody)
     });
 
     if (!response.ok) {
