@@ -80,7 +80,6 @@ async function getAnswerWithSources(req, res) {
     
         const response = await googleApiClient.get("/", { params });
         const searchResults = response.data.items || [];
-        console.log (response)
         
         // Filter out banned domains from search results
         const filteredResults = searchResults.filter(result => !isBannedDomain(result.link));
