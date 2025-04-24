@@ -36,4 +36,17 @@ app.get("/", (req, res) => {
     res.send("Hello, World!");
 });
 
+// Test endpoint for CORS
+app.get("/test-cors", (req, res) => {
+    res.json({ message: "CORS is working!" });
+});
+
+// Test endpoint for POST requests
+app.post("/test-post", (req, res) => {
+    res.json({ 
+        message: "POST request received successfully!",
+        body: req.body 
+    });
+});
+
 module.exports = app;
