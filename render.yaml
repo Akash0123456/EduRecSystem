@@ -1,0 +1,52 @@
+services:
+  - type: web
+    name: edu-rec-system-frontend
+    env: static
+    buildCommand: cd frontend && npm install && npm run build
+    staticPublishPath: ./frontend/dist
+    routes:
+      - type: rewrite
+        source: /*
+        destination: /index.html
+    envVars:
+      - key: NODE_VERSION
+        value: 18.x
+      - key: VITE_FIREBASE_API_KEY
+        value: AIzaSyByjmbCoNpkNbc7YWlTIkuqZZinpf1g9Kg
+      - key: VITE_FIREBASE_AUTH_DOMAIN
+        value: edu-rec-system.firebaseapp.com
+      - key: VITE_FIREBASE_PROJECT_ID
+        value: edu-rec-system
+      - key: VITE_FIREBASE_STORAGE_BUCKET
+        value: edu-rec-system.firebasestorage.app
+      - key: VITE_FIREBASE_MESSAGING_SENDER_ID
+        value: 634062786627
+      - key: VITE_FIREBASE_APP_ID
+        value: 1:634062786627:web:40d6475d1c0424606d84f6
+      - key: VITE_FIREBASE_MEASUREMENT_ID
+        value: G-950JFNNJTH
+      - key: VITE_OPENAI_API_KEY
+        sync: false
+      - key: VITE_API_BASE_URL
+        fromService:
+          name: edu-rec-system-backend
+          type: web
+          property: host
+          envVarName: RENDER_EXTERNAL_URL
+
+  - type: web
+    name: edu-rec-system-backend
+    env: node
+    buildCommand: cd backend && npm install
+    startCommand: cd backend && node src/server.js
+    envVars:
+      - key: NODE_VERSION
+        value: 18.x
+      - key: GOOGLE_API_KEY
+        sync: false
+      - key: OPEN_AI_API_KEY
+        sync: false
+      - key: GOOGLE_CSE_ID
+        sync: false
+      - key: PORT
+        value: 10000
