@@ -10,7 +10,7 @@ steps:
       [
         'build',
         '-t',
-        'us-central1-docker.pkg.dev/$PROJECT_ID/edu-rec-backend-repo/backend:$COMMIT_SHA',
+        'us-east1-docker.pkg.dev/$PROJECT_ID/edu-rec-backend-repo/backend:$COMMIT_SHA',
         './backend'
       ]
 
@@ -19,7 +19,7 @@ steps:
     args:
       [
         'push',
-        'us-central1-docker.pkg.dev/$PROJECT_ID/edu-rec-backend-repo/backend:$COMMIT_SHA'
+        'us-east1-docker.pkg.dev/$PROJECT_ID/edu-rec-backend-repo/backend:$COMMIT_SHA'
       ]
 
   # Step 4: Deploy to Cloud Run using the Artifact Registry image
@@ -30,9 +30,9 @@ steps:
       - 'deploy'
       - 'backend'
       - '--image'
-      - 'us-central1-docker.pkg.dev/$PROJECT_ID/edu-rec-backend-repo/backend:$COMMIT_SHA'
+      - 'us-east1-docker.pkg.dev/$PROJECT_ID/edu-rec-backend-repo/backend:$COMMIT_SHA'
       - '--region'
-      - 'us-central1'
+      - 'us-east1'
       - '--platform'
       - 'managed'
       - '--allow-unauthenticated'
@@ -40,7 +40,7 @@ steps:
       - 'GOOGLE_API_KEY=${_GOOGLE_API_KEY},GOOGLE_CSE_ID=${_GOOGLE_CSE_ID},OPENAI_API_KEY=${_OPENAI_API_KEY}'
 
 images:
-  - 'us-central1-docker.pkg.dev/$PROJECT_ID/edu-rec-backend-repo/backend:$COMMIT_SHA'
+  - 'us-east1-docker.pkg.dev/$PROJECT_ID/edu-rec-backend-repo/backend:$COMMIT_SHA'
 
 options:
   logging: CLOUD_LOGGING_ONLY
