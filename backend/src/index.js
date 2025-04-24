@@ -3,8 +3,17 @@ const express = require("express");
 const cors = require("cors");
 const app = express();
 
-// Enable CORS for all routes
-app.use(cors());
+// Enable CORS for specific origins
+app.use(cors({
+  origin: [
+    'https://edurecsystem.onrender.com',
+    'https://edu-rec-system-frontend.onrender.com',
+    'http://localhost:3000',
+    'http://localhost:5173'
+  ],
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization']
+}));
 
 app.use(express.json());
 
