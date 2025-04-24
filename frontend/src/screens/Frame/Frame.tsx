@@ -13,6 +13,7 @@ import { Message, AssistantResponse, isStringContent } from "../../models/chat";
 import { sendMessage } from "../../services/queryService";
 import { createChat, addMessage, getUserChats, updateChatTitle, deleteChat } from "../../services/chatService";
 import { generateChatName } from "../../services/openaiService";
+import { useSettings } from "../../contexts/SettingsContext";
 import { auth } from "../../firebase";
 import { onAuthStateChanged, signOut } from "firebase/auth";
 import { QueryDocumentSnapshot } from "firebase/firestore";
@@ -32,6 +33,7 @@ const sampleRecentChats: RecentChat[] = [];
 
 export const Frame = (): JSX.Element => {
   const navigate = useNavigate();
+  const { settings } = useSettings();
   // State for chats and current active chat
   const [recentChats, setRecentChats] = useState<RecentChat[]>(sampleRecentChats);
   const [activeChat, setActiveChat] = useState<string>("");
@@ -294,10 +296,11 @@ export const Frame = (): JSX.Element => {
       setInputValue("");
       setIsLoading(true);
       
-      // Call OpenAI API with conversation history
+      // Call OpenAI API with conversation history and user settings
       const response = await sendMessage(
         isStringContent(newUserMessage.content) ? newUserMessage.content : JSON.stringify(newUserMessage.content),
-        currentChat.messages
+        currentChat.messages,
+        settings
       );
       
       // Create assistant message
@@ -421,10 +424,11 @@ export const Frame = (): JSX.Element => {
     setShowFeedbackPrompt(false);
     
     try {
-      // Call OpenAI API with the same user message and conversation history
+      // Call OpenAI API with the same user message and conversation history, including user settings
       const response = await sendMessage(
         userContent,
-        currentChat.messages.slice(0, messageIndex)
+        currentChat.messages.slice(0, messageIndex),
+        settings
       );
       
       // Create new assistant message

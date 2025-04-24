@@ -7,13 +7,15 @@ import { About } from "./screens/About";
 import { Settings } from "./screens/Settings";
 import { ForgotPassword } from "./screens/ForgotPassword/ForgotPassword";
 import { ProtectedRoute } from "./components/ProtectedRoute";
+import { SettingsProvider } from "./contexts/SettingsContext";
 import "./index.css";
 import 'katex/dist/katex.min.css';
 
 ReactDOM.createRoot(document.getElementById("root")!).render(
   <React.StrictMode>
-    <BrowserRouter>
-      <Routes>
+    <SettingsProvider>
+      <BrowserRouter>
+        <Routes>
         <Route path="/" element={
           <ProtectedRoute requireAuth={false}>
             <Box />
@@ -39,7 +41,8 @@ ReactDOM.createRoot(document.getElementById("root")!).render(
             <ForgotPassword />
           </ProtectedRoute>
         } />
-      </Routes>
-    </BrowserRouter>
+        </Routes>
+      </BrowserRouter>
+    </SettingsProvider>
   </React.StrictMode>
 );
