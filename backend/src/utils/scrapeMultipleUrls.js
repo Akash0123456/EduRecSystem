@@ -2,33 +2,30 @@ const { scrapeWebsite, closeBrowserPool } = require('./scraper');
 
 async function scrapeMultipleUrls(urls, maxResults = 3, maxCharsPerPage = 4000) {
   try {
-    // Take only the first maxResults URLs
     const urlsToScrape = urls.slice(0, maxResults);
-
-    // Create an array of promises for parallel scraping
-    const scrapePromises = urlsToScrape.map(async (url) => {
+    const results = [];
+    
+    // Process URLs sequentially with a delay
+    for (const url of urlsToScrape) {
       try {
+        console.log(`Starting to scrape: ${url}`);
         const content = await scrapeWebsite(url);
         if (content) {
-          return {
+          results.push({
             url,
             content: content.substring(0, maxCharsPerPage)
-          };
+          });
         }
-        return null;
+        // Add a small delay between requests to prevent overwhelming the system
+        await new Promise(resolve => setTimeout(resolve, 1000));
       } catch (err) {
         console.warn(`Skipping ${url} due to scrape failure:`, err.message);
-        return null;
       }
-    });
+    }
 
-    // Wait for all scraping operations to complete
-    const results = await Promise.all(scrapePromises);
-
-    // Filter out null results and return
-    return results.filter(result => result !== null);
+    return results;
   } catch (err) {
-    console.error('Error in parallel scraping:', err);
+    console.error('Error in sequential scraping:', err);
     return [];
   }
 }

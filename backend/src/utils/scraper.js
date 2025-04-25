@@ -11,10 +11,11 @@ browserPool.initialize().catch(err => {
 
 async function scrapeWebsite(url) {
   let browser;
+  let page;
   try {
     // Acquire a browser from the pool
     browser = await browserPool.acquire();
-    const page = await browser.newPage();
+    page = await browser.newPage();
     
     // Set a reasonable timeout and wait for content
     await page.goto(url, { 
@@ -39,8 +40,10 @@ async function scrapeWebsite(url) {
     console.error(`Playwright failed to scrape ${url}:`, err.message);
     return null;
   } finally {
+    if (page) {
+      await page.close(); // Explicitly close the page
+    }
     if (browser) {
-      // Release the browser back to the pool
       browserPool.release(browser);
     }
   }
