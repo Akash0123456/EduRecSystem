@@ -12,7 +12,12 @@ class BrowserPool {
   async initialize() {
     // Initialize the pool with browser instances
     for (let i = 0; i < this.maxBrowsers; i++) {
-      const browser = await chromium.launch({ headless: true });
+      const browser = await chromium.launch(
+        { 
+          headless: true, 
+          args: ['--no-sandbox', '--disable-dev-shm-usage']
+        }
+      );
       browser.isIdle = true;
       browser.idleTime = Date.now();
       this.browsers.push(browser);
@@ -31,7 +36,12 @@ class BrowserPool {
         if (browser.isIdle && browser.idleTime > 10 * 60 * 1000) { // 10 minutes
           console.log(`Closing idle browser ${i}`);
           await browser.close();
-          const newBrowser = await chromium.launch({ headless: true });
+          const newBrowser = await chromium.launch(
+            { 
+              headless: true, 
+              args: ['--no-sandbox', '--disable-dev-shm-usage'] 
+            }
+          );
           newBrowser.isIdle = true;
           newBrowser.idleTime = Date.now();
           this.browsers[i] = newBrowser;
